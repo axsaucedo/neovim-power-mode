@@ -2,6 +2,13 @@
 -- Usage: Open this file in Neovim inside iTerm2 and run :luafile %
 -- Make sure tmux has: set -g allow-passthrough on
 
+-- Resolve script directory robustly (handles :luafile from same directory)
+local _script_source = debug.getinfo(1, "S").source:sub(2)
+local script_dir = _script_source:match("(.*/)")
+if not script_dir then
+  script_dir = vim.fn.fnamemodify(_script_source, ":p:h") .. "/"
+end
+
 local M = {}
 
 -- Base64 encode helper
@@ -74,7 +81,6 @@ end
 
 -- Test 1: Display a single frame
 function M.test_single_frame()
-  local script_dir = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
   local frame_path = script_dir .. "frames/frame_000.png"
   
   print("Test 1: Single frame display")
@@ -89,7 +95,6 @@ end
 
 -- Test 2: Animate frames rapidly
 function M.test_animation()
-  local script_dir = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
   local frames_dir = script_dir .. "frames/"
   
   print("Test 2: Animation test (20 frames at ~10fps)")
@@ -118,7 +123,6 @@ end
 
 -- Test 3: Display glow image
 function M.test_glow()
-  local script_dir = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
   local glow_path = script_dir .. "frames/glow.png"
   
   print("Test 3: Glow image display")

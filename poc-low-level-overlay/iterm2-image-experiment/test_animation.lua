@@ -1,6 +1,13 @@
 -- Rapid animation test for iTerm2 inline images
 -- Tests: How fast can we swap images? What's the visual quality?
 
+-- Resolve script directory robustly (handles :luafile from same directory)
+local _script_source = debug.getinfo(1, "S").source:sub(2)
+local script_dir = _script_source:match("(.*/)")
+if not script_dir then
+  script_dir = vim.fn.fnamemodify(_script_source, ":p:h") .. "/"
+end
+
 local function base64_encode(data)
   local b = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
   return ((data:gsub('.', function(x)
@@ -21,7 +28,6 @@ end
 
 -- Pre-load all frames into memory as base64
 local function preload_frames()
-  local script_dir = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
   local frames = {}
   for i = 0, 19 do
     local path = string.format("%sframes/frame_%03d.png", script_dir, i)
