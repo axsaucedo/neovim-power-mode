@@ -17,16 +17,16 @@ local function find_overlay()
   -- Look for overlay binaries relative to this plugin
   local plugin_dir = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":h:h:h:h")
   
-  -- Try Swift overlay first (compiled binary)
+  -- Try Rust overlay first (compiled binary)
+  local rust_path = plugin_dir .. "/rust-overlay/power-mode-overlay"
+  if vim.fn.executable(rust_path) == 1 then
+    return rust_path
+  end
+  
+  -- Fall back to Swift overlay
   local swift_path = plugin_dir .. "/swift-overlay/power-mode-overlay"
   if vim.fn.executable(swift_path) == 1 then
     return swift_path
-  end
-  
-  -- Fall back to Python overlay
-  local python_path = plugin_dir .. "/python-overlay/main.py"
-  if vim.fn.filereadable(python_path) == 1 then
-    return "python3 " .. python_path
   end
   
   return nil
@@ -125,7 +125,7 @@ function M.start(cmd)
   
   cmd = cmd or find_overlay()
   if not cmd then
-    vim.notify("No overlay binary found! Build swift-overlay or install python deps first.", vim.log.levels.ERROR)
+    vim.notify("No overlay binary found! Build rust-overlay or swift-overlay first.", vim.log.levels.ERROR)
     return
   end
   
