@@ -1,0 +1,38 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        neovim: ['v0.9.5', 'v0.10.0', 'nightly']
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Neovim
+        uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: ${{ matrix.neovim }}
+
+      - name: Run config tests
+        run: |
+          nvim --headless -u tests/minimal_init.lua -c "luafile tests/test_config.lua" -c "qall!"
+
+      - name: Run particle tests
+        run: |
+          nvim --headless -u tests/minimal_init.lua -c "luafile tests/test_particles.lua" -c "qall!"
+
+      - name: Run combo tests
+        run: |
+          nvim --headless -u tests/minimal_init.lua -c "luafile tests/test_combo.lua" -c "qall!"
+
+      - name: Run highlight tests
+        run: |
+          nvim --headless -u tests/minimal_init.lua -c "luafile tests/test_highlights.lua" -c "qall!"

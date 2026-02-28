@@ -1,3 +1,14 @@
-power-mode-overlay
-**/power-mode-overlay
-target/
+# Build artifacts
+*.so
+*.dylib
+
+# Editor
+.netrwhist
+tags
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Session
+Session.vim

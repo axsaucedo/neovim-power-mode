@@ -1,0 +1,230 @@
+*power-mode.txt*  VS Code Power Mode for Neovim
+
+Author:   neovim-power-mode contributors
+License:  MIT
+Homepage: https://github.com/your-username/neovim-power-mode
+
+==============================================================================
+CONTENTS                                              *power-mode-contents*
+
+  1. Introduction .......................... |power-mode-intro|
+  2. Setup ................................ |power-mode-setup|
+  3. Commands ............................. |power-mode-commands|
+  4. Configuration ........................ |power-mode-config|
+  5. Presets .............................. |power-mode-presets|
+  6. Custom Presets ....................... |power-mode-custom-presets|
+  7. Colors ............................... |power-mode-colors|
+  8. Combo System ......................... |power-mode-combo|
+  9. Shake Modes .......................... |power-mode-shake|
+ 10. Troubleshooting ...................... |power-mode-troubleshooting|
+
+==============================================================================
+1. INTRODUCTION                                         *power-mode-intro*
+
+neovim-power-mode brings VS Code's "Power Mode" to Neovim. Every keystroke
+in insert mode triggers animated particle explosions, a combo counter with
+shake effects, and cyberpunk neon colors — making your editor feel alive.
+
+Pure Lua implementation. No external dependencies. Works in any terminal.
+
+==============================================================================
+2. SETUP                                                *power-mode-setup*
+
+Minimal setup: >lua
+  require("power-mode").setup()
+<
+Enable on startup: >lua
+  require("power-mode").setup({ auto_enable = true })
+<
+Then toggle with |:PowerModeToggle| or enable with |:PowerModeEnable|.
+
+==============================================================================
+3. COMMANDS                                          *power-mode-commands*
+
+*:PowerModeToggle*    Toggle power mode on/off.
+*:PowerModeEnable*    Enable power mode.
+*:PowerModeDisable*   Disable power mode.
+*:PowerModeStyle*     Switch particle preset. Accepts one argument:
+                    explosion, fountain, rightburst, shockwave,
+                    disintegrate, emoji, stars.
+*:PowerModeShake*     Set shake mode: none, scroll, applescript.
+*:PowerModeCancel*    Toggle cancel-on-new: on, off.
+*:PowerModeStatus*    Show current configuration summary.
+
+==============================================================================
+4. CONFIGURATION                                      *power-mode-config*
+
+Pass a table to `setup()`. All fields are optional: >lua
+  require("power-mode").setup({
+    auto_enable = false,
+    particles = {
+      preset = "explosion",
+      cancel_on_new = true,
+      cancel_fadeout_ms = 80,
+      count = { 6, 10 },
+      speed = { 5, 12 },
+      lifetime = { 200, 500 },
+      gravity = 0.15,
+      drag = 0.96,
+      spread = { -2.79, -0.35 },
+      upward_bias = 0.7,
+      chars = nil,
+      pool_size = 60,
+      max_particles = 100,
+      avoid_cursor = true,
+    },
+    backspace = {
+      enabled = true,
+      preset = "fire",
+      chars = nil,
+      colors = { 5, 6 },
+    },
+    combo = {
+      enabled = true,
+      position = "top-right",
+      width = 20,
+      height = 7,
+      timeout = 3000,
+      thresholds = { 10, 25, 50, 100, 200 },
+      shake = true,
+      exclamations = {
+        "UNSTOPPABLE!", "GODLIKE!", "RAMPAGE!",
+      },
+      exclamation_interval = 10,
+      exclamation_duration = 1500,
+    },
+    shake = {
+      mode = "none",
+      interval = 1,
+      magnitude = nil,
+      restore_delay = 50,
+    },
+    engine = {
+      fps = 25,
+      stop_delay = 2000,
+    },
+  })
+<
+
+                                              *power-mode-vim-globals*
+Alternatively, use vim global variables: >vim
+  let g:power_mode_auto_enable = 1
+  let g:power_mode_particle_preset = 'explosion'
+  let g:power_mode_shake_mode = 'scroll'
+  let g:power_mode_combo_position = 'top-right'
+  let g:power_mode_engine_fps = 25
+<
+Priority: setup() > vim globals > defaults.
+
+==============================================================================
+5. PRESETS                                           *power-mode-presets*
+
+Built-in particle presets:
+
+  explosion     Radial burst with ◆◇▲▼◈, 70% upward bias
+  fountain      Narrow upward geyser with │╎┃╏╵
+  rightburst    Arrows flying right with →➜➤▸⊳›
+  shockwave     Expanding ring of ░▒▓█ blocks
+  emoji         Scattered ⭐🌟✨💫🔥💥 emojis
+  stars         Twinkling ✦✧⋆✶✸✹✺⊹ near cursor
+  disintegrate  Buffer text shatters outward
+  fire          Downward 🔥▓▒░ embers (backspace only)
+
+Switch at runtime: `:PowerModeStyle fountain`
+
+==============================================================================
+6. CUSTOM PRESETS                              *power-mode-custom-presets*
+
+Define a custom preset: >lua
+  require("power-mode").setup({
+    particles = {
+      preset = "custom",
+      custom = {
+        chars = { "⚔", "🗡", "💀", "☠" },
+        count = { 5, 8 },
+        speed = { 6, 14 },
+        lifetime = { 200, 400 },
+        gravity = 0.10,
+        drag = 0.95,
+        spread = { -2.5, -0.5 },
+        upward_bias = 0.8,
+      },
+    },
+  })
+<
+Override individual params of a built-in preset: >lua
+  require("power-mode").setup({
+    particles = {
+      preset = "explosion",
+      chars = { "★", "☆", "✡" },
+      count = { 10, 15 },
+    },
+  })
+<
+
+==============================================================================
+7. COLORS                                            *power-mode-colors*
+
+8 color slots (PowerModeParticle1..8). Each is { fg, bg, ctermfg, ctermbg }.
+Override in setup: >lua
+  require("power-mode").setup({
+    colors = {
+      color_1 = { "#FF0000", "#110000", 196, 52 },
+    },
+  })
+<
+Or via vim globals: >vim
+  let g:power_mode_color_1 = '#FF0000'
+<
+
+Best with `set termguicolors`. Without it, cterm fallback colors are used.
+
+==============================================================================
+8. COMBO SYSTEM                                       *power-mode-combo*
+
+Tracks consecutive keystrokes. A floating window shows:
+- Combo count with animated border
+- Timeout bar that drains over `combo.timeout` ms
+- Max streak counter
+- Random exclamation phrases at milestones
+
+Levels escalate via `combo.thresholds`:
+  Level 0  green    (default)
+  Level 1  cyan     (10+ keystrokes)
+  Level 2  pink     (25+ keystrokes)
+  Level 3  purple   (50+ keystrokes)
+  Level 4  red      (100+ keystrokes)
+
+Combo window shakes on each keystroke (configurable).
+
+==============================================================================
+9. SHAKE MODES                                        *power-mode-shake*
+
+Three screen shake modes:
+
+  none          No screen shake (default)
+  scroll        Viewport jitters via winrestview (all platforms)
+  applescript   iTerm2 window jitters via AppleScript (macOS only)
+
+Set via config or command: `:PowerModeShake scroll`
+
+`shake.interval` controls frequency (1 = every keystroke, 2 = every other).
+`shake.magnitude` overrides auto-scaling from combo level.
+
+==============================================================================
+10. TROUBLESHOOTING                          *power-mode-troubleshooting*
+
+Colors look wrong?
+  Add `set termguicolors` to your config.
+
+Particles lag?
+  Lower FPS: `engine = { fps = 15 }`
+  Reduce particles: `particles = { count = { 3, 5 }, pool_size = 30 }`
+
+Not working in tmux?
+  Floating windows should work. Ensure Neovim ≥ 0.9.
+
+AppleScript shake doesn't work?
+  Only works with iTerm2 on macOS. Grant Accessibility permissions.
+
+ vim:tw=78:ts=8:ft=help:norl:
