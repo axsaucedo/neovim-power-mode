@@ -34,3 +34,14 @@ end, {
   end,
   desc = "Set shake mode: none, combo (default), scroll, or applescript",
 })
+
+vim.api.nvim_create_user_command("PowerModeCancel", function(opts)
+  local val = opts.args == "on" or opts.args == "true"
+  require("power-mode.particles").set_cancel_on_new(val)
+end, {
+  nargs = 1,
+  complete = function()
+    return { "on", "off" }
+  end,
+  desc = "Cancel previous particles when new ones spawn: on/off",
+})

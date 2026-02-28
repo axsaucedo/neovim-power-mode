@@ -13,6 +13,13 @@ local modes = {
 local current_mode = "explosion"  -- default
 local current_module = nil
 
+local cancel_on_new = false
+
+function M.set_cancel_on_new(val)
+  cancel_on_new = val
+  vim.notify("⚡ Cancel previous: " .. tostring(val), vim.log.levels.INFO)
+end
+
 local function load_mode(mode_name)
   local mod_path = modes[mode_name]
   if not mod_path then
@@ -39,6 +46,15 @@ end
 
 function M.spawn(row, col)
   if not current_module then load_mode(current_mode) end
+  -- If cancel_on_new, rapidly fade out existing particles
+  if cancel_on_new then
+    local existing = current_module.get_active()
+    for _, p in ipairs(existing) do
+      if p.lifetime > 80 then
+        p.lifetime = 80  -- force rapid fadeout (80ms remaining)
+      end
+    end
+  end
   current_module.spawn(row, col)
 end
 

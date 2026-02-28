@@ -26,20 +26,15 @@ function M.trigger(level)
   end
 end
 
--- Mode 2: Scroll shake — briefly scroll viewport down then back up
+-- Mode 2: Scroll shake — briefly shift viewport topline then restore
 function M._scroll_shake(level)
   local magnitude = math.min(1 + level, 3)
-  -- Random direction
+  local current_top = vim.fn.line("w0")
   local dir = math.random() > 0.5
-  local scroll_cmd = dir and "\\<C-e>" or "\\<C-y>"
-  local restore_cmd = dir and "\\<C-y>" or "\\<C-e>"
+  local new_top = dir and (current_top + magnitude) or (current_top - magnitude)
+  new_top = math.max(1, new_top)
 
-  -- Save cursor to restore after shake
-  pcall(function()
-    for _ = 1, magnitude do
-      vim.cmd("normal! " .. scroll_cmd)
-    end
-  end)
+  pcall(vim.fn.winrestview, { topline = new_top })
 
   -- Restore after short delay
   if shake_timer then
@@ -47,11 +42,7 @@ function M._scroll_shake(level)
   end
   shake_timer = vim.loop.new_timer()
   shake_timer:start(50, 0, vim.schedule_wrap(function()
-    pcall(function()
-      for _ = 1, magnitude do
-        vim.cmd("normal! " .. restore_cmd)
-      end
-    end)
+    pcall(vim.fn.winrestview, { topline = current_top })
     if shake_timer then
       pcall(function() shake_timer:stop() shake_timer:close() end)
       shake_timer = nil

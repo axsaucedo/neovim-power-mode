@@ -3,30 +3,27 @@ local M = {}
 local active = {}
 local MAX_PARTICLES = 60
 
--- Star/sparkle emojis — these are wider (2 cells) in most terminals
-local emojis = { "⭐", "🌟", "✨", "💫", "🔥", "⚡", "💥", "🎆" }
--- Fallback single-width chars mixed in
-local singles = { "★", "✦", "✧", "◆", "◈" }
+-- Emojis ONLY — unique to emoji mode (no single-width fallbacks)
+local emojis = { "⭐", "🌟", "✨", "💫", "🔥", "💥", "🎆", "🎇" }
 
 function M.spawn(row, col)
-  -- Mix of emojis and single-width chars
-  local count = utils.random_int(4, 7)
+  -- Fewer particles since emojis are bigger; upward scatter with wide spread
+  local count = utils.random_int(3, 5)
   for _ = 1, count do
     if #active >= MAX_PARTICLES then break end
-    -- Upward burst with slight right bias
-    local angle = utils.random(-2.4, -0.5)
-    local speed = utils.random(4, 9)
-    local use_emoji = math.random() > 0.4
+    -- Angle: -150° to -30° = -2.62 to -0.52 (upward with wide scatter)
+    local angle = utils.random(-2.62, -0.52)
+    local speed = utils.random(3, 6)
     active[#active + 1] = {
       x = col,
       y = row,
-      vx = math.cos(angle) * speed + 0.5,  -- slight rightward nudge
+      vx = math.cos(angle) * speed,
       vy = math.sin(angle) * speed * 0.5,
-      char = use_emoji and utils.random_choice(emojis) or utils.random_choice(singles),
+      char = utils.random_choice(emojis),
       color_idx = utils.random_int(1, 8),
-      lifetime = utils.random(350, 700),
-      max_lifetime = 700,
-      is_emoji = use_emoji,
+      lifetime = utils.random(400, 800),
+      max_lifetime = 800,
+      is_emoji = true,
     }
   end
 end

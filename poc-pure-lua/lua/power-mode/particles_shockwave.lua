@@ -4,7 +4,7 @@ local active = {}
 local MAX_PARTICLES = 120
 
 -- Block gradient characters from light to heavy
-local chars = { "░", "▒", "▓", "█", "▒", "░" }
+local chars = { "░", "▒", "▓", "█" }
 
 function M.spawn(row, col)
   -- Spawn a ring of 12-16 particles expanding outward in a circle

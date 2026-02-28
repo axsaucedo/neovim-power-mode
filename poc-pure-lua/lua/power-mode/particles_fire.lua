@@ -3,16 +3,18 @@ local M = {}
 local active = {}
 local MAX_PARTICLES = 80
 
-local chars = { "🔥", "▓", "▒", "░", "⚡", "✦", "•" }
-local fire_colors = { 1, 5, 6 }  -- cyan(1), orange(5), gold(6) from highlights
+-- Fire emoji + block fade — unique to fire (backspace effect)
+local chars = { "🔥", "▓", "▒", "░", "•", "·" }
+local fire_colors = { 5, 6 }  -- only orange(5) and gold(6)
 
 function M.spawn(row, col)
+  -- DOWNWARD: embers falling from where text was deleted
   local count = utils.random_int(5, 9)
   for _ = 1, count do
     if #active >= MAX_PARTICLES then break end
-    -- Fire spreads outward and slightly downward
-    local angle = utils.random(-0.8, -2.35)  -- mostly upward but wider spread
-    local speed = utils.random(3, 8)
+    -- Angle: +30° to +150° (below horizontal) = 0.52 to 2.62 radians
+    local angle = utils.random(0.52, 2.62)
+    local speed = utils.random(3, 6)
     active[#active + 1] = {
       x = col,
       y = row,
@@ -22,20 +24,6 @@ function M.spawn(row, col)
       color_idx = utils.random_choice(fire_colors),
       lifetime = utils.random(200, 500),
       max_lifetime = 500,
-    }
-  end
-  -- Add falling ember sparks
-  for _ = 1, utils.random_int(2, 4) do
-    if #active >= MAX_PARTICLES then break end
-    active[#active + 1] = {
-      x = col + utils.random(-1, 1),
-      y = row,
-      vx = utils.random(-1, 1),
-      vy = utils.random(0.5, 2),  -- downward
-      char = utils.random_choice({ "·", "•", "░" }),
-      color_idx = utils.random_choice({ 5, 6 }),  -- orange, gold
-      lifetime = utils.random(300, 600),
-      max_lifetime = 600,
     }
   end
 end

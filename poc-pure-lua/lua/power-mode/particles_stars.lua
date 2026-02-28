@@ -9,18 +9,18 @@ function M.spawn(row, col)
   local count = utils.random_int(5, 10)
   for _ = 1, count do
     if #active >= MAX_PARTICLES then break end
-    -- Stars appear scattered around cursor (±4 cols, ±2 rows)
-    local ox = utils.random(-4, 4)
-    local oy = utils.random(-2, 2)
+    -- Stars appear scattered around cursor (±5 cols, ±3 rows)
+    local ox = utils.random(-5, 5)
+    local oy = utils.random(-3, 3)
     active[#active + 1] = {
       x = col + ox,
       y = row + oy,
-      vx = utils.random(-0.3, 0.3),  -- almost stationary, gentle drift
-      vy = utils.random(-0.5, -0.1),  -- very slow upward float
+      vx = utils.random(-0.1, 0.1),  -- nearly zero drift
+      vy = utils.random(-0.3, -0.1),  -- barely drifting upward (0.1-0.3)
       char = utils.random_choice(star_chars),
       color_idx = utils.random_int(1, 8),
-      lifetime = utils.random(300, 600),
-      max_lifetime = 600,
+      lifetime = utils.random(200, 400),  -- short: twinkle/flash
+      max_lifetime = 400,
       twinkle_phase = utils.random(0, 6.28),  -- random start phase
       twinkle_speed = utils.random(8, 15),  -- flicker speed
     }

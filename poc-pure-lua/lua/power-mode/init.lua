@@ -66,20 +66,19 @@ function M.enable()
   })
 
   -- Detect backspace in insert mode for fire effect
+  local bs_code = vim.api.nvim_replace_termcodes("<BS>", true, false, true)
+  local del_code = vim.api.nvim_replace_termcodes("<Del>", true, false, true)
   on_key_ns = vim.on_key(function(key)
     if not enabled then return end
-    local mode = vim.api.nvim_get_mode().mode
-    if mode ~= "i" then return end
-    -- Check for backspace (BS=\8, DEL=\127, or <BS> termcode)
-    local byte = key:byte(1)
-    if byte == 8 or byte == 127 then
-      vim.schedule(function()
-        if not enabled then return end
-        local row, col = get_cursor_pos()
-        fire.spawn(row, col)
-        -- Fire particles rendered via the shared engine
-      end)
-    end
+    -- Check for backspace or delete
+    if key ~= bs_code and key ~= del_code then return end
+    vim.schedule(function()
+      if not enabled then return end
+      local m = vim.api.nvim_get_mode().mode
+      if m ~= "i" and m ~= "ic" and m ~= "ix" then return end
+      local row, col = get_cursor_pos()
+      fire.spawn(row, col)
+    end)
   end)
 
   vim.api.nvim_create_autocmd("InsertLeave", {

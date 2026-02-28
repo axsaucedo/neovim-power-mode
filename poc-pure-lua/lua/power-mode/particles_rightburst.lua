@@ -3,43 +3,30 @@ local M = {}
 local active = {}
 local MAX_PARTICLES = 100
 
-local chars_fast = { "✦", "⚡", "★", "✧", "◈", "⬦" }
-local chars_slow = { "·", "•", "∘", "○" }
+-- Arrow/chevron chars pointing right — unique to rightburst
+local chars = { "→", "➜", "➤", "▸", "⊳", "›" }
 
 function M.spawn(row, col)
-  -- Fast sparks: upward-right bias (angle -10° to -80° from horizontal = mostly up-right)
-  local fast_count = utils.random_int(4, 8)
-  for _ = 1, fast_count do
+  -- 80% rightward (-30° to +30°), 20% slight upward-right (-30° to -60°)
+  local count = utils.random_int(5, 9)
+  for _ = 1, count do
     if #active >= MAX_PARTICLES then break end
-    -- Angles in radians: -0.17 to -1.40 (roughly -10° to -80°, biased up-right)
-    local angle = utils.random(-1.40, -0.17)
-    local speed = utils.random(5, 11)
+    local angle
+    if math.random() < 0.8 then
+      angle = utils.random(-0.52, 0.52)   -- -30° to +30° (rightward)
+    else
+      angle = utils.random(-1.05, -0.52)  -- -60° to -30° (upward-right)
+    end
+    local speed = utils.random(8, 15)
     active[#active + 1] = {
       x = col,
       y = row,
       vx = math.cos(angle) * speed,
       vy = math.sin(angle) * speed * 0.5,
-      char = utils.random_choice(chars_fast),
+      char = utils.random_choice(chars),
       color_idx = utils.random_int(1, 8),
-      lifetime = utils.random(250, 550),
-      max_lifetime = 550,
-    }
-  end
-  -- Slow trailing dots: same direction but slower
-  local slow_count = utils.random_int(2, 4)
-  for _ = 1, slow_count do
-    if #active >= MAX_PARTICLES then break end
-    local angle = utils.random(-1.2, -0.1)
-    local speed = utils.random(1.5, 4)
-    active[#active + 1] = {
-      x = col,
-      y = row,
-      vx = math.cos(angle) * speed,
-      vy = math.sin(angle) * speed * 0.5,
-      char = utils.random_choice(chars_slow),
-      color_idx = utils.random_int(1, 8),
-      lifetime = utils.random(350, 700),
-      max_lifetime = 700,
+      lifetime = utils.random(350, 650),
+      max_lifetime = 650,
     }
   end
 end
@@ -51,9 +38,9 @@ function M.update(dt)
     local p = active[i]
     p.x = p.x + p.vx * dt
     p.y = p.y + p.vy * dt
-    p.vy = p.vy + 0.10 * dt * 60  -- light gravity
-    p.vx = p.vx * 0.97
-    p.vy = p.vy * 0.97
+    p.vy = p.vy + 0.03 * dt * 60  -- very low gravity — particles travel far right
+    p.vx = p.vx * 0.98
+    p.vy = p.vy * 0.98
     p.lifetime = p.lifetime - dt * 1000
     if p.lifetime <= 0 or p.x < 0 or p.x >= dims.width or p.y < 0 or p.y >= dims.height then
       active[i] = active[#active]
