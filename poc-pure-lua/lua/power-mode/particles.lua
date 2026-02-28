@@ -5,6 +5,9 @@ local modes = {
   fountain = "power-mode.particles_fountain",
   disintegrate = "power-mode.particles_disintegrate",
   explosion = "power-mode.particles_explosion",
+  rightburst = "power-mode.particles_rightburst",
+  emoji = "power-mode.particles_emoji",
+  stars = "power-mode.particles_stars",
 }
 
 local current_mode = "explosion"  -- default

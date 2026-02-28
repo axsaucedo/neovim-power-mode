@@ -20,7 +20,17 @@ vim.api.nvim_create_user_command("PowerModeStyle", function(opts)
 end, {
   nargs = 1,
   complete = function()
-    return { "shockwave", "fountain", "disintegrate", "explosion" }
+    return { "explosion", "fountain", "rightburst", "shockwave", "disintegrate", "emoji", "stars" }
   end,
-  desc = "Set particle style: shockwave, fountain, disintegrate, or explosion",
+  desc = "Set particle style",
+})
+
+vim.api.nvim_create_user_command("PowerModeShake", function(opts)
+  require("power-mode.shake").set_mode(opts.args)
+end, {
+  nargs = 1,
+  complete = function()
+    return { "none", "combo", "scroll", "applescript" }
+  end,
+  desc = "Set shake mode: none, combo (default), scroll, or applescript",
 })

@@ -1,6 +1,7 @@
 local particles = require("power-mode.particles")
 local renderer = require("power-mode.renderer")
 local combo = require("power-mode.combo")
+local fire = require("power-mode.particles_fire")
 
 local M = {}
 
@@ -19,7 +20,12 @@ function M.start()
 
     vim.schedule(function()
       particles.update(dt)
-      renderer.render(particles.get_active())
+      fire.update(dt)
+      -- Merge both particle lists for rendering
+      local all = {}
+      for _, p in ipairs(particles.get_active()) do all[#all + 1] = p end
+      for _, p in ipairs(fire.get_active()) do all[#all + 1] = p end
+      renderer.render(all)
       combo.update(dt)
     end)
   end)

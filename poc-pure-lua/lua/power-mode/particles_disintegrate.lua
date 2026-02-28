@@ -7,9 +7,12 @@ local MAX_PARTICLES = 80
 local tumble_frames = { "╱", "─", "╲", "│" }
 
 function M.spawn(row, col)
-  -- Grab actual characters from the buffer around the cursor
+  -- Convert screen position back to buffer position for text extraction
   local buf = vim.api.nvim_get_current_buf()
-  local lines = vim.api.nvim_buf_get_lines(buf, math.max(0, row - 1), row + 2, false)
+  local cursor = vim.api.nvim_win_get_cursor(0)
+  local buf_row = cursor[1]  -- 1-indexed buffer line
+  local buf_col = cursor[2]  -- 0-indexed byte column
+  local lines = vim.api.nvim_buf_get_lines(buf, math.max(0, buf_row - 2), buf_row + 1, false)
 
   -- Spawn particles from positions around the cursor (±3 cols, ±1 row)
   for dy = -1, 1 do
@@ -22,10 +25,9 @@ function M.spawn(row, col)
       if #active >= MAX_PARTICLES then return end
       if math.random() > 0.4 then goto next_col end  -- random sparsity
 
-      local char_col = col + dx
-      if char_col < 0 or char_col >= #line then goto next_col end
+      local char_col = buf_col + dx
+      if char_col < 0 or not line or char_col >= #line then goto next_col end
 
-      -- Get the actual character at this position
       local char = line:sub(char_col + 1, char_col + 1)
       if char == " " or char == "" then goto next_col end
 

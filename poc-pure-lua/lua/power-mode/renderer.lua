@@ -31,6 +31,15 @@ function M.render(particles)
     entry.in_use = false
   end
 
+  -- Get cursor position to avoid shadowing typed characters
+  local cursor_row, cursor_col = -1, -1
+  pcall(function()
+    local cur = vim.api.nvim_win_get_cursor(0)
+    local pos = vim.fn.screenpos(vim.fn.win_getid(), cur[1], cur[2] + 1)
+    cursor_row = pos.row - 1
+    cursor_col = pos.col - 1
+  end)
+
   local pool_idx = 1
   for _, p in ipairs(particles) do
     -- Find next available slot
@@ -40,15 +49,22 @@ function M.render(particles)
     if pool_idx > #pool then break end
 
     local entry = pool[pool_idx]
+
+    -- Skip particles that would shadow the cursor or previous character
+    local px, py = math.floor(p.x), math.floor(p.y)
+    if py == cursor_row and (px == cursor_col or px == cursor_col - 1) then
+      goto continue
+    end
+
     entry.in_use = true
 
     if not vim.api.nvim_win_is_valid(entry.win) then
-      -- Recreate window if invalidated
+      -- Recreate window if invalidated (width=2 to accommodate emojis, resized below)
       local ok, win = pcall(vim.api.nvim_open_win, entry.buf, false, {
         relative = "editor",
         row = math.floor(p.y),
         col = math.floor(p.x),
-        width = 1,
+        width = 2,
         height = 1,
         style = "minimal",
         focusable = false,
@@ -63,11 +79,13 @@ function M.render(particles)
     end
 
     pcall(vim.api.nvim_buf_set_lines, entry.buf, 0, -1, false, { p.char })
+    local char_width = vim.fn.strdisplaywidth(p.char)
+    if char_width < 1 then char_width = 1 end
     pcall(vim.api.nvim_win_set_config, entry.win, {
       relative = "editor",
       row = math.floor(p.y),
       col = math.floor(p.x),
-      width = 1,
+      width = char_width,
       height = 1,
     })
 

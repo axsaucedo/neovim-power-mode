@@ -196,6 +196,10 @@ function M.render()
   pcall(vim.api.nvim_buf_set_lines, buf, 0, -1, false, lines)
 end
 
+function M.get_level()
+  return state.level
+end
+
 function M.reposition()
   base_col = vim.o.columns - WIN_WIDTH - 2
   if win and vim.api.nvim_win_is_valid(win) then
