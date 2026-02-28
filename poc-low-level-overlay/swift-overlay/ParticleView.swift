@@ -20,7 +20,7 @@ struct Particle {
 class ParticleView: NSView {
 
     // Toggle: true = CAEmitterLayer, false = Core Graphics manual particles
-    var useEmitterLayer = false
+    var useEmitterLayer = true
 
     private var particles: [Particle] = []
     private let maxParticles = 300
@@ -93,17 +93,17 @@ class ParticleView: NSView {
         let toSpawn = min(count, maxParticles - particles.count)
         for _ in 0..<toSpawn {
             let angle = CGFloat.random(in: 0...(2 * .pi))
-            let speed = CGFloat.random(in: 80...250)
+            let speed = CGFloat.random(in: 120...350)
             let color = neonColors.randomElement()!
             let p = Particle(
                 x: point.x,
                 y: point.y,
                 vx: cos(angle) * speed,
-                vy: sin(angle) * speed,
+                vy: sin(angle) * speed * 1.3 + 150,
                 alpha: 1.0,
                 lifetime: 0,
                 maxLifetime: CGFloat.random(in: 0.4...1.2),
-                radius: CGFloat.random(in: 2...5),
+                radius: CGFloat.random(in: 3.0...12.0),
                 color: color
             )
             particles.append(p)
@@ -123,7 +123,7 @@ class ParticleView: NSView {
 
     func updateGlow(at point: CGPoint) {
         glowPosition = point
-        glowAlpha = 0.3
+        glowAlpha = min(1.0, 0.5 + CGFloat(comboLevel) * 0.1)
     }
 
     func update(dt: CGFloat) {
@@ -144,7 +144,7 @@ class ParticleView: NSView {
 
         // Fade glow
         if glowAlpha > 0 {
-            glowAlpha -= dt * 0.5
+            glowAlpha -= dt * 0.15
             if glowAlpha < 0 { glowAlpha = 0 }
         }
 
@@ -174,7 +174,6 @@ class ParticleView: NSView {
         guard let ctx = NSGraphicsContext.current?.cgContext else { return }
         ctx.clear(bounds)
 
-        drawGlow(ctx: ctx)
         drawParticles(ctx: ctx)
         drawCombo(ctx: ctx)
     }
@@ -184,10 +183,34 @@ class ParticleView: NSView {
             let r = p.color.redComponent
             let g = p.color.greenComponent
             let b = p.color.blueComponent
+
+            // Draw trailing circles for comet tail effect
+            let trailCount = 3
+            for t in 0..<trailCount {
+                let trailFactor = CGFloat(t + 1) * 0.15
+                let trailX = p.x - p.vx * trailFactor * (1.0 / 60.0) * 3
+                let trailY = p.y - p.vy * trailFactor * (1.0 / 60.0) * 3
+                let trailAlpha = p.alpha * (1.0 - CGFloat(t + 1) / CGFloat(trailCount + 1)) * 0.5
+                let trailRadius = p.radius * (1.0 - CGFloat(t + 1) / CGFloat(trailCount + 1)) * 0.8
+                ctx.setFillColor(CGColor(red: r, green: g, blue: b, alpha: trailAlpha))
+                let trailRect = CGRect(x: trailX - trailRadius, y: trailY - trailRadius,
+                                       width: trailRadius * 2, height: trailRadius * 2)
+                ctx.fillEllipse(in: trailRect)
+            }
+
+            // Outer colored circle
             ctx.setFillColor(CGColor(red: r, green: g, blue: b, alpha: p.alpha))
             let rect = CGRect(x: p.x - p.radius, y: p.y - p.radius,
                               width: p.radius * 2, height: p.radius * 2)
             ctx.fillEllipse(in: rect)
+
+            // Inner bright core (white-ish, ~60% radius, higher alpha)
+            let coreRadius = p.radius * 0.6
+            let coreAlpha = min(1.0, p.alpha * 1.4)
+            ctx.setFillColor(CGColor(red: 1.0, green: 1.0, blue: 1.0, alpha: coreAlpha))
+            let coreRect = CGRect(x: p.x - coreRadius, y: p.y - coreRadius,
+                                  width: coreRadius * 2, height: coreRadius * 2)
+            ctx.fillEllipse(in: coreRect)
         }
     }
 
@@ -201,14 +224,25 @@ class ParticleView: NSView {
         let g = glowColor.greenComponent
         let b = glowColor.blueComponent
 
+        let innerRadius = 80 + CGFloat(comboLevel) * 20
         let colors: [CGFloat] = [r, g, b, glowAlpha, r, g, b, 0.0]
         let locations: [CGFloat] = [0.0, 1.0]
 
         guard let gradient = CGGradient(colorSpace: colorSpace, colorComponents: colors,
                                         locations: locations, count: 2) else { return }
+        // Inner glow
         ctx.drawRadialGradient(gradient, startCenter: pos, startRadius: 0,
-                               endCenter: pos, endRadius: 40,
+                               endCenter: pos, endRadius: innerRadius,
                                options: .drawsAfterEndLocation)
+
+        // Outer bloom layer at 2x radius, half alpha
+        let outerColors: [CGFloat] = [r, g, b, glowAlpha * 0.5, r, g, b, 0.0]
+        if let outerGradient = CGGradient(colorSpace: colorSpace, colorComponents: outerColors,
+                                          locations: locations, count: 2) {
+            ctx.drawRadialGradient(outerGradient, startCenter: pos, startRadius: 0,
+                                   endCenter: pos, endRadius: innerRadius * 2,
+                                   options: .drawsAfterEndLocation)
+        }
     }
 
     private func drawCombo(ctx: CGContext) {
@@ -260,25 +294,26 @@ class ParticleView: NSView {
 
         let cells = neonColors.map { color -> CAEmitterCell in
             let cell = CAEmitterCell()
-            cell.birthRate = 8
-            cell.lifetime = 1.0
-            cell.velocity = 150
-            cell.velocityRange = 80
+            cell.birthRate = 15
+            cell.lifetime = 1.5
+            cell.velocity = 250
+            cell.velocityRange = 150
             cell.emissionRange = .pi * 2
-            cell.scale = 0.05
-            cell.scaleRange = 0.03
-            cell.scaleSpeed = -0.02
-            cell.alphaSpeed = -0.8
+            cell.emissionLongitude = .pi / 2
+            cell.scale = 0.2
+            cell.scaleRange = 0.12
+            cell.scaleSpeed = -0.08
+            cell.alphaSpeed = -0.6
             cell.color = color.cgColor
             // Use a small white circle as content
-            let size = CGSize(width: 12, height: 12)
+            let size = CGSize(width: 24, height: 24)
             let image = NSImage(size: size, flipped: false) { rect in
                 NSColor.white.setFill()
                 NSBezierPath(ovalIn: rect).fill()
                 return true
             }
             cell.contents = image.cgImage(forProposedRect: nil, context: nil, hints: nil)
-            cell.yAcceleration = 200
+            cell.yAcceleration = 300
             return cell
         }
 

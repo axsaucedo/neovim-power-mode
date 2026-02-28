@@ -1,7 +1,6 @@
 local particles = require("power-mode.particles")
 local renderer = require("power-mode.renderer")
 local combo = require("power-mode.combo")
-local glow = require("power-mode.glow")
 
 local M = {}
 

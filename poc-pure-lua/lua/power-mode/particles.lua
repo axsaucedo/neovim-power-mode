@@ -1,57 +1,59 @@
-local utils = require("power-mode.utils")
-
 local M = {}
 
-local active = {}
-local MAX_PARTICLES = 100
+local modes = {
+  shockwave = "power-mode.particles_shockwave",
+  fountain = "power-mode.particles_fountain",
+  disintegrate = "power-mode.particles_disintegrate",
+  explosion = "power-mode.particles_explosion",
+}
 
-local chars = { "✦", "✧", "⬥", "•", "·", "★", "⚡", "◆", "△" }
+local current_mode = "explosion"  -- default
+local current_module = nil
+
+local function load_mode(mode_name)
+  local mod_path = modes[mode_name]
+  if not mod_path then
+    vim.notify("Unknown particle mode: " .. tostring(mode_name), vim.log.levels.ERROR)
+    return
+  end
+  -- Clear old module cache to force reload
+  package.loaded[mod_path] = nil
+  current_module = require(mod_path)
+  current_mode = mode_name
+end
+
+function M.set_mode(mode_name)
+  if current_module then
+    current_module.clear()
+  end
+  load_mode(mode_name)
+  vim.notify("⚡ Particle mode: " .. mode_name, vim.log.levels.INFO)
+end
+
+function M.get_mode()
+  return current_mode
+end
 
 function M.spawn(row, col)
-  local count = utils.random_int(3, 8)
-  for _ = 1, count do
-    if #active >= MAX_PARTICLES then break end
-    local lifetime = utils.random(400, 800)
-    active[#active + 1] = {
-      x = col,
-      y = row,
-      vx = utils.random(-3, 3),
-      vy = utils.random(-4, 1),
-      char = utils.random_choice(chars),
-      color_idx = utils.random_int(1, 8),
-      lifetime = lifetime,
-      max_lifetime = lifetime,
-    }
-  end
+  if not current_module then load_mode(current_mode) end
+  current_module.spawn(row, col)
 end
 
 function M.update(dt)
-  local i = 1
-  local dims = utils.get_editor_dimensions()
-  while i <= #active do
-    local p = active[i]
-    p.x = p.x + p.vx * dt
-    p.y = p.y + p.vy * dt
-    p.vy = p.vy + 0.15 * dt * 60
-    p.vx = p.vx * 0.95
-    p.vy = p.vy * 0.95
-    p.lifetime = p.lifetime - dt * 1000
-
-    if p.lifetime <= 0 or p.x < 0 or p.x >= dims.width or p.y < 0 or p.y >= dims.height then
-      active[i] = active[#active]
-      active[#active] = nil
-    else
-      i = i + 1
-    end
-  end
+  if not current_module then return end
+  current_module.update(dt)
 end
 
 function M.get_active()
-  return active
+  if not current_module then return {} end
+  return current_module.get_active()
 end
 
 function M.clear()
-  active = {}
+  if current_module then current_module.clear() end
 end
+
+-- Initialize default mode
+load_mode(current_mode)
 
 return M

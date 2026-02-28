@@ -2,7 +2,6 @@ local highlights = require("power-mode.highlights")
 local particles = require("power-mode.particles")
 local renderer = require("power-mode.renderer")
 local combo = require("power-mode.combo")
-local glow = require("power-mode.glow")
 local engine = require("power-mode.engine")
 
 local M = {}
@@ -27,10 +26,8 @@ end
 
 local function get_cursor_pos()
   local cursor = vim.api.nvim_win_get_cursor(0)
-  local win_pos = vim.api.nvim_win_get_position(0)
-  local row = win_pos[1] + cursor[1] - vim.fn.line("w0")
-  local col = win_pos[2] + cursor[2]
-  return row, col
+  local pos = vim.fn.screenpos(vim.fn.win_getid(), cursor[1], cursor[2] + 1)
+  return pos.row - 1, pos.col - 1
 end
 
 function M.enable()
@@ -40,7 +37,6 @@ function M.enable()
   highlights.setup()
   renderer.init()
   combo.init()
-  glow.init()
   engine.start()
 
   augroup = vim.api.nvim_create_augroup("PowerMode", { clear = true })
@@ -53,8 +49,6 @@ function M.enable()
         local row, col = get_cursor_pos()
         particles.spawn(row, col)
         combo.increment()
-        glow.update(row, col)
-        glow.show()
 
         -- Cancel any pending stop timer
         if stop_timer then
@@ -65,21 +59,11 @@ function M.enable()
     end,
   })
 
-  vim.api.nvim_create_autocmd("TextChangedI", {
-    group = augroup,
-    callback = function()
-      if not enabled then return end
-      local row, col = get_cursor_pos()
-      glow.update(row, col)
-    end,
-  })
-
   vim.api.nvim_create_autocmd("InsertLeave", {
     group = augroup,
     callback = function()
       if not enabled then return end
       combo.reset()
-      glow.hide()
 
       -- Stop engine after a short delay to let particles finish
       if stop_timer then
@@ -111,7 +95,6 @@ function M.enable()
       if not engine.is_running() then
         engine.start()
       end
-      glow.show()
     end,
   })
 
@@ -144,7 +127,6 @@ function M.disable()
   particles.clear()
   renderer.cleanup()
   combo.cleanup()
-  glow.cleanup()
 
   vim.notify("Power Mode disabled", vim.log.levels.INFO)
 end
