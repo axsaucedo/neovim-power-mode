@@ -157,6 +157,7 @@ require("power-mode").setup({
 | `:PowerModeDisable` | Disable power mode |
 | `:PowerModeStyle {preset}` | Switch particle preset |
 | `:PowerModeShake {mode}` | Set shake mode: `none`, `scroll`, `applescript` |
+| `:PowerModeFireWall {mode}` | Set fire wall mode: `none`, `ember_rise`, `fire_columns`, `inferno` |
 | `:PowerModeCancel {on\|off}` | Toggle cancel-previous-particles |
 | `:PowerModeStatus` | Show current configuration |
 
@@ -174,6 +175,19 @@ require("power-mode").setup({
 | `fire` | 🔥▓▒░•· | Downward embers (backspace only) |
 
 Switch at runtime: `:PowerModeStyle fountain`
+
+## Fire Wall (Cacafire)
+
+Rising fire from the bottom of the editor, intensity scales with combo level.
+
+| Mode | Characters | Description |
+|------|-----------|-------------|
+| `none` | — | Off (default) |
+| `ember_rise` | `· • ░ ▒ *` | Sparse drifting embers from bottom edge |
+| `fire_columns` | `█ ▓ ▒ ░ ▲ ^ 🔥` | Dense ASCII fire wall (classic cacafire) |
+| `inferno` | `🔥 █ ▓ ▒ ░ ▲ ^ * ✦` | Full-width maximum intensity |
+
+Switch at runtime: `:PowerModeFireWall fire_columns`
 
 ## Configuration
 
@@ -255,6 +269,14 @@ require("power-mode").setup({
     interval = 1,            -- Shake every N keystrokes
     magnitude = nil,         -- Override magnitude (nil = auto from combo level)
     restore_delay = 50,      -- ms before restoring viewport (scroll mode)
+  },
+
+  -- Fire wall (cacafire) — rising fire from bottom edge
+  fire_wall = {
+    mode = "none",           -- "none"|"ember_rise"|"fire_columns"|"inferno"
+    max_height = 8,          -- Max rows from bottom at max combo
+    base_height = 2,         -- Min rows at combo level 0
+    colors = { 5, 6, 1 },   -- Color indices (orange, gold, cyan by default)
   },
 
   -- Animation engine
@@ -367,6 +389,7 @@ let g:power_mode_auto_enable = 1
 let g:power_mode_particle_preset = 'explosion'
 let g:power_mode_particle_cancel_on_new = 1
 let g:power_mode_shake_mode = 'scroll'
+let g:power_mode_fire_wall_mode = 'fire_columns'
 let g:power_mode_combo_enabled = 1
 let g:power_mode_combo_position = 'top-right'
 let g:power_mode_engine_fps = 25

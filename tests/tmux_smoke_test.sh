@@ -135,6 +135,23 @@ done
 MSGS=$(get_messages)
 assert_not_contains "No errors switching presets" "E[0-9][0-9][0-9]:|stack traceback" "$MSGS"
 
+# ── Test 9: PowerModeFireWall mode switching ─────────────────────────────────
+echo "▶ Test 9: :PowerModeFireWall modes"
+for MODE in ember_rise fire_columns inferno none; do
+  send_cmd "PowerModeFireWall $MODE" 0.5
+done
+MSGS=$(get_messages)
+assert_contains "Fire wall mode set" "Fire wall mode" "$MSGS"
+assert_not_contains "No errors switching fire wall modes" "E[0-9][0-9][0-9]:|stack traceback" "$MSGS"
+
+# ── Test 10: Status shows fire wall ──────────────────────────────────────────
+echo "▶ Test 10: Status shows fire wall mode"
+send_cmd "PowerModeStatus" 1.5
+OUT=$(capture)
+assert_contains "Status shows fire wall" "Fire wall:" "$OUT"
+tmux send-keys -t "$SESSION" Enter ""
+sleep 0.3
+
 # ── Cleanup ───────────────────────────────────────────────────────────────────
 rm -f "$SCRATCH" /tmp/pm_smoke_msgs.txt
 

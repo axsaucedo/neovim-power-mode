@@ -73,6 +73,14 @@ local defaults = {
     restore_delay = 50,
   },
 
+  fire_wall = {
+    mode = "none",        -- "none" | "ember_rise" | "fire_columns" | "inferno"
+    max_height = 8,       -- maximum rows from bottom at max combo
+    base_height = 2,      -- minimum rows at combo level 0
+    spawn_rate = 3,       -- unused (count driven by mode params + combo)
+    colors = { 5, 6, 1 }, -- color indices: orange, gold, cyan
+  },
+
   engine = {
     fps = 25,
     stop_delay = 2000,
@@ -104,6 +112,9 @@ local function read_vim_globals()
     { "g:power_mode_shake_mode", { "shake", "mode" } },
     { "g:power_mode_shake_interval", { "shake", "interval" } },
     { "g:power_mode_shake_restore_delay", { "shake", "restore_delay" } },
+    { "g:power_mode_fire_wall_mode", { "fire_wall", "mode" } },
+    { "g:power_mode_fire_wall_max_height", { "fire_wall", "max_height" } },
+    { "g:power_mode_fire_wall_base_height", { "fire_wall", "base_height" } },
     { "g:power_mode_engine_fps", { "engine", "fps" } },
     { "g:power_mode_engine_stop_delay", { "engine", "stop_delay" } },
   }
@@ -184,6 +195,13 @@ local function validate(cfg)
   if c.position and not valid_positions[c.position] then
     vim.notify("[power-mode] combo.position must be top-right/top-left/bottom-right/bottom-left", vim.log.levels.WARN)
     c.position = defaults.combo.position
+  end
+
+  local fw = cfg.fire_wall
+  local valid_fw_modes = { none = true, ember_rise = true, fire_columns = true, inferno = true }
+  if fw.mode and not valid_fw_modes[fw.mode] then
+    vim.notify("[power-mode] fire_wall.mode must be none/ember_rise/fire_columns/inferno", vim.log.levels.WARN)
+    fw.mode = defaults.fire_wall.mode
   end
 
   return cfg

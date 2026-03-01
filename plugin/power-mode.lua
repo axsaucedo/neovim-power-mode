@@ -53,6 +53,16 @@ end, {
   desc = "Toggle cancel-previous-particles: on/off",
 })
 
+vim.api.nvim_create_user_command("PowerModeFireWall", function(opts)
+  require("power-mode.fire_wall").set_mode(opts.args)
+end, {
+  nargs = 1,
+  complete = function()
+    return { "none", "ember_rise", "fire_columns", "inferno" }
+  end,
+  desc = "Set fire wall mode: none, ember_rise, fire_columns, or inferno",
+})
+
 vim.api.nvim_create_user_command("PowerModeStatus", function()
   require("power-mode").status()
 end, { desc = "Show Power Mode status and configuration" })

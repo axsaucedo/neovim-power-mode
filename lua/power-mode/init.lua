@@ -8,6 +8,7 @@ local combo = require("power-mode.combo")
 local engine = require("power-mode.engine")
 local shake = require("power-mode.shake")
 local fire = require("power-mode.presets.fire")
+local fire_wall = require("power-mode.fire_wall")
 
 local M = {}
 
@@ -31,7 +32,7 @@ function M.setup(opts)
   particles.init()
 
   -- Wire engine modules (avoids circular requires)
-  engine.set_modules(particles, fire, renderer, combo)
+  engine.set_modules(particles, fire, renderer, combo, fire_wall)
 
   -- Re-create highlight groups whenever a colorscheme is loaded
   -- (colorschemes run :highlight clear which wipes our groups)
@@ -73,6 +74,7 @@ function M.enable()
         particles.spawn(row, col)
         combo.increment()
         shake.trigger(combo.get_level())
+        fire_wall.spawn(combo.get_level())
 
         if stop_timer then
           pcall(function() stop_timer:stop() stop_timer:close() end)
@@ -113,7 +115,7 @@ function M.enable()
       stop_timer = vim.loop.new_timer()
       stop_timer:start(delay, 0, vim.schedule_wrap(function()
         if not enabled then return end
-        if #particles.get_active() == 0 and #fire.get_active() == 0 then
+        if #particles.get_active() == 0 and #fire.get_active() == 0 and #fire_wall.get_active() == 0 then
           engine.stop()
         end
         if stop_timer then
@@ -171,6 +173,7 @@ function M.disable()
   engine.stop()
   particles.clear()
   fire.clear()
+  fire_wall.clear()
   renderer.cleanup()
   combo.cleanup()
   shake.cleanup()
@@ -202,6 +205,7 @@ function M.status()
     "  Combo: " .. tostring(cfg.combo.enabled),
     "  FPS: " .. tostring(cfg.engine.fps),
     "  Backspace fire: " .. tostring(cfg.backspace.enabled),
+    "  Fire wall: " .. tostring(cfg.fire_wall.mode),
   }
   vim.notify(table.concat(lines, "\n"), vim.log.levels.INFO)
 end

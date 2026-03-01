@@ -36,3 +36,7 @@ jobs:
       - name: Run highlight tests
         run: |
           nvim --headless -u tests/minimal_init.lua -c "luafile tests/test_highlights.lua" -c "qall!"
+
+      - name: Run fire wall tests
+        run: |
+          nvim --headless -u tests/minimal_init.lua -c "luafile tests/test_fire_wall.lua" -c "qall!"

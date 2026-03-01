@@ -10,14 +10,16 @@ local last_time = nil
 -- Modules injected at runtime to avoid circular requires
 local particles_mod = nil
 local fire_mod = nil
+local fire_wall_mod = nil
 local renderer_mod = nil
 local combo_mod = nil
 
-function M.set_modules(p, f, r, c)
+function M.set_modules(p, f, r, c, fw)
   particles_mod = p
   fire_mod = f
   renderer_mod = r
   combo_mod = c
+  fire_wall_mod = fw
 end
 
 function M.start()
@@ -35,14 +37,18 @@ function M.start()
     vim.schedule(function()
       if particles_mod then particles_mod.update(dt) end
       if fire_mod then fire_mod.update(dt) end
+      if fire_wall_mod then fire_wall_mod.update(dt) end
 
-      -- Merge both particle lists for rendering
+      -- Merge all particle lists for rendering
       local all = {}
       if particles_mod then
         for _, p in ipairs(particles_mod.get_active()) do all[#all + 1] = p end
       end
       if fire_mod then
         for _, p in ipairs(fire_mod.get_active()) do all[#all + 1] = p end
+      end
+      if fire_wall_mod then
+        for _, p in ipairs(fire_wall_mod.get_active()) do all[#all + 1] = p end
       end
 
       if renderer_mod then renderer_mod.render(all) end

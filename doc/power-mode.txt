@@ -48,6 +48,8 @@ Then toggle with |:PowerModeToggle| or enable with |:PowerModeEnable|.
                     explosion, fountain, rightburst, shockwave,
                     disintegrate, emoji, stars.
 *:PowerModeShake*     Set shake mode: none, scroll, applescript.
+*:PowerModeFireWall*  Set fire wall mode: none, ember_rise, fire_columns,
+                    inferno. Intensity scales with combo level.
 *:PowerModeCancel*    Toggle cancel-on-new: on, off.
 *:PowerModeStatus*    Show current configuration summary.
 
@@ -99,6 +101,12 @@ Pass a table to `setup()`. All fields are optional: >lua
       magnitude = nil,
       restore_delay = 50,
     },
+    fire_wall = {
+      mode = "none",         -- "none"|"ember_rise"|"fire_columns"|"inferno"
+      max_height = 8,
+      base_height = 2,
+      colors = { 5, 6, 1 },
+    },
     engine = {
       fps = 25,
       stop_delay = 2000,
@@ -131,6 +139,28 @@ Built-in particle presets:
   fire          Downward 🔥▓▒░ embers (backspace only)
 
 Switch at runtime: `:PowerModeStyle fountain`
+
+==============================================================================
+5a. FIRE WALL (CACAFIRE)                            *power-mode-fire-wall*
+
+Rising fire from the bottom of the editor. Intensity scales with combo level.
+
+  Mode           Description~
+  none           Off (default)
+  ember_rise     Sparse drifting embers from bottom edge
+  fire_columns   Dense ASCII fire wall (classic cacafire)
+  inferno        Full-width maximum intensity
+
+Switch at runtime: `:PowerModeFireWall fire_columns`
+
+Configure: >lua
+  fire_wall = {
+    mode = "fire_columns",
+    max_height = 8,         -- Max rows from bottom at max combo
+    base_height = 2,        -- Min rows at combo level 0
+    colors = { 5, 6, 1 },  -- Orange, gold, cyan
+  }
+<
 
 ==============================================================================
 6. CUSTOM PRESETS                              *power-mode-custom-presets*
