@@ -76,7 +76,7 @@ function M.enable()
         particles.spawn(row, col)
         combo.increment()
         shake.trigger(combo.get_level())
-        fire_wall.spawn(combo.get_level())
+        fire_wall.spawn(combo.get_level(), combo.get_streak())
 
         if stop_timer then
           pcall(function() stop_timer:stop() stop_timer:close() end)

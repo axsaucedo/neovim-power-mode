@@ -240,6 +240,10 @@ function M.get_level()
   return state.level
 end
 
+function M.get_streak()
+  return state.current_streak
+end
+
 function M.reposition()
   local cfg = config.get()
   if not cfg.combo.enabled then return end
