@@ -3,10 +3,10 @@
 local M = {}
 
 local defaults = {
-  auto_enable = false,
+  auto_enable = true,
 
   particles = {
-    preset = "explosion",
+    preset = "rightburst",
     cancel_on_new = true,
     cancel_fadeout_ms = 80,
     count = { 6, 10 },
@@ -75,10 +75,6 @@ local defaults = {
 
   fire_wall = {
     mode = "none",        -- "none" | "ember_rise" | "fire_columns" | "inferno"
-    max_height = 8,       -- maximum rows from bottom at max combo
-    base_height = 2,      -- minimum rows at combo level 0
-    spawn_rate = 3,       -- unused (count driven by mode params + combo)
-    colors = { 5, 6, 1 }, -- color indices: orange, gold, cyan
   },
 
   engine = {
@@ -113,8 +109,6 @@ local function read_vim_globals()
     { "g:power_mode_shake_interval", { "shake", "interval" } },
     { "g:power_mode_shake_restore_delay", { "shake", "restore_delay" } },
     { "g:power_mode_fire_wall_mode", { "fire_wall", "mode" } },
-    { "g:power_mode_fire_wall_max_height", { "fire_wall", "max_height" } },
-    { "g:power_mode_fire_wall_base_height", { "fire_wall", "base_height" } },
     { "g:power_mode_engine_fps", { "engine", "fps" } },
     { "g:power_mode_engine_stop_delay", { "engine", "stop_delay" } },
   }

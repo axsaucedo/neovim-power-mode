@@ -1,9 +1,25 @@
 --- Plugin entry point for neovim-power-mode
---- Defines user commands and prevents double-loading
+--- Defines user commands, auto-enables on VimEnter, prevents double-loading
 if vim.g.loaded_power_mode then
   return
 end
 vim.g.loaded_power_mode = true
+
+-- Auto-setup on VimEnter if user never called setup() explicitly.
+-- This makes install → works with zero config.
+vim.api.nvim_create_autocmd("VimEnter", {
+  group = vim.api.nvim_create_augroup("PowerModeAutoSetup", { clear = true }),
+  once = true,
+  callback = function()
+    -- Defer to let user's config (init.lua / vimrc) finish loading first
+    vim.defer_fn(function()
+      local pm = require("power-mode")
+      if not pm._is_setup_called() then
+        pm.setup()
+      end
+    end, 0)
+  end,
+})
 
 vim.api.nvim_create_user_command("PowerModeToggle", function()
   require("power-mode").toggle()
@@ -22,7 +38,7 @@ vim.api.nvim_create_user_command("PowerModeStyle", function(opts)
 end, {
   nargs = 1,
   complete = function()
-    return { "explosion", "fountain", "rightburst", "shockwave", "disintegrate", "emoji", "stars" }
+    return { "rightburst", "stars", "explosion", "fountain", "shockwave", "emoji", "disintegrate" }
   end,
   desc = "Set particle style preset",
 })
@@ -40,17 +56,29 @@ end, {
   desc = "Set shake mode: none, scroll, or applescript",
 })
 
-vim.api.nvim_create_user_command("PowerModeCancel", function(opts)
+vim.api.nvim_create_user_command("PowerModeInterrupt", function(opts)
   local val = opts.args == "on" or opts.args == "true"
   local cfg = require("power-mode.config")
   cfg.config.particles.cancel_on_new = val
-  vim.notify("⚡ Cancel on new: " .. tostring(val), vim.log.levels.INFO)
+  vim.notify("⚡ Interrupt on new: " .. tostring(val), vim.log.levels.INFO)
 end, {
   nargs = 1,
   complete = function()
     return { "on", "off" }
   end,
-  desc = "Toggle cancel-previous-particles: on/off",
+  desc = "Toggle interrupt-previous-particles: on/off",
+})
+
+-- Deprecated alias: PowerModeCancel → PowerModeInterrupt
+vim.api.nvim_create_user_command("PowerModeCancel", function(opts)
+  vim.notify("[power-mode] PowerModeCancel is deprecated, use PowerModeInterrupt", vim.log.levels.WARN)
+  vim.cmd("PowerModeInterrupt " .. opts.args)
+end, {
+  nargs = 1,
+  complete = function()
+    return { "on", "off" }
+  end,
+  desc = "(Deprecated) Use :PowerModeInterrupt instead",
 })
 
 vim.api.nvim_create_user_command("PowerModeFireWall", function(opts)

@@ -193,6 +193,10 @@ function M.is_enabled()
   return enabled
 end
 
+function M._is_setup_called()
+  return _setup_called
+end
+
 --- Show current configuration status
 function M.status()
   local cfg = config.get()

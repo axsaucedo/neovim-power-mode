@@ -24,8 +24,8 @@ end
 
 -- Test 1: defaults load correctly
 local defaults = config.get_defaults()
-assert_eq(defaults.auto_enable, false, "default auto_enable")
-assert_eq(defaults.particles.preset, "explosion", "default preset")
+assert_eq(defaults.auto_enable, true, "default auto_enable")
+assert_eq(defaults.particles.preset, "rightburst", "default preset")
 assert_eq(defaults.particles.cancel_on_new, true, "default cancel_on_new")
 assert_eq(defaults.particles.pool_size, 60, "default pool_size")
 assert_eq(defaults.engine.fps, 25, "default fps")
@@ -38,7 +38,7 @@ assert_eq(defaults.backspace.enabled, true, "default backspace enabled")
 -- Test 2: resolve with empty opts returns defaults
 config.resolve({})
 local cfg = config.get()
-assert_eq(cfg.particles.preset, "explosion", "resolve empty → preset")
+assert_eq(cfg.particles.preset, "rightburst", "resolve empty → preset")
 assert_eq(cfg.engine.fps, 25, "resolve empty → fps")
 
 -- Test 3: resolve merges user opts

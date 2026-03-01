@@ -30,23 +30,26 @@
 ### [lazy.nvim](https://github.com/folke/lazy.nvim)
 
 ```lua
-{
-  "your-username/neovim-power-mode",
-  config = function()
-    require("power-mode").setup()
-  end,
-}
+{ "axsaucedo/neovim-power-mode" }
 ```
+
+> **That's it!** The plugin auto-enables with defaults. To customize:
+> ```lua
+> {
+>   "axsaucedo/neovim-power-mode",
+>   config = function()
+>     require("power-mode").setup({
+>       particles = { preset = "stars" },
+>       shake = { mode = "scroll" },
+>     })
+>   end,
+> }
+> ```
 
 ### [packer.nvim](https://github.com/wbthomason/packer.nvim)
 
 ```lua
-use {
-  "your-username/neovim-power-mode",
-  config = function()
-    require("power-mode").setup()
-  end,
-}
+use { "axsaucedo/neovim-power-mode" }
 ```
 
 ### [vim-plug](https://github.com/junegunn/vim-plug)
@@ -55,95 +58,43 @@ use {
 Plug 'axsaucedo/neovim-power-mode'
 ```
 
-Then call `setup()` **after** `plug#end()` in your `init.vim`.
-
 > **⚠️ vim-plug heredoc warning**: Vimscript treats `"` as a comment character.
 > Inside a `lua << EOF` block, any line starting with `"` becomes an
 > unterminated Lua string and causes `E5107`. The `EOF` terminator must also
 > start at column 0 (no leading whitespace).
 >
-> **Safest approach** — use the single-line form:
+> To customize, use vim globals (no heredoc needed):
 
 ```vim
 call plug#end()
 
-" Minimal (no options):
-lua require("power-mode").setup()
-
-" With options (use vim globals — no lua heredoc needed):
-let g:power_mode_auto_enable = 1
-let g:power_mode_preset = 'explosion'
-lua require("power-mode").setup()
-```
-
-> If you must use a heredoc, ensure `EOF` is at column 0 and contains no
-> vimscript comments (`"...`) inside the block:
-
-```vim
-lua << EOF
-require("power-mode").setup({
-  auto_enable = true,
-  preset = "explosion",
-})
-EOF
+" Optional: override defaults via vim globals
+let g:power_mode_particle_preset = 'stars'
+let g:power_mode_shake_mode = 'scroll'
 ```
 
 ### [mini.deps](https://github.com/echasnovski/mini.deps)
 
 ```lua
-MiniDeps.add({ source = "your-username/neovim-power-mode" })
-require("power-mode").setup()
+MiniDeps.add({ source = "axsaucedo/neovim-power-mode" })
 ```
 
 ### No plugin manager
 
-If you are using no plugin manager you can clone it directly.
-
 ```
-mkdir -p ~/.local/share/nvim/site/pack/plugins/start/plugin
+mkdir -p ~/.local/share/nvim/site/pack/plugins/start
 git clone https://github.com/axsaucedo/neovim-power-mode.git \
      ~/.local/share/nvim/site/pack/plugins/start/neovim-power-mode
 ```
 
-### .vimrc
-
-If you are using `init.vim` (vimscript config), use vim globals to configure
-and a single-line Lua call to initialize — **no heredoc required**:
-
-```vim
-" Set options via vim globals (optional)
-let g:power_mode_auto_enable = 1
-let g:power_mode_preset = 'explosion'
-
-" Single-line init — safe with any plugin manager
-lua require("power-mode").setup()
-```
-
-### Manual
-
-```sh
-git clone https://github.com/your-username/neovim-power-mode \
-  ~/.local/share/nvim/site/pack/plugins/start/neovim-power-mode
-```
-
 ## Quick Start
 
-```lua
--- Minimal: just call setup and toggle
-require("power-mode").setup()
--- Then use :PowerModeToggle to enable
-```
+Just install the plugin — it auto-enables with defaults. Enter insert mode and start typing!
 
 ```lua
--- Auto-enable on startup
-require("power-mode").setup({ auto_enable = true })
-```
-
-```lua
--- Customized
+-- To customize (optional):
 require("power-mode").setup({
-  auto_enable = true,
-  particles = { preset = "emoji" },
+  particles = { preset = "stars" },
   shake = { mode = "scroll" },
 })
 ```
@@ -158,19 +109,20 @@ require("power-mode").setup({
 | `:PowerModeStyle {preset}` | Switch particle preset |
 | `:PowerModeShake {mode}` | Set shake mode: `none`, `scroll`, `applescript` |
 | `:PowerModeFireWall {mode}` | Set fire wall mode: `none`, `ember_rise`, `fire_columns`, `inferno` |
-| `:PowerModeCancel {on\|off}` | Toggle cancel-previous-particles |
+| `:PowerModeInterrupt {on\|off}` | Toggle interrupt-previous-particles |
+| `:PowerModeCancel {on\|off}` | *(Deprecated)* Alias for `:PowerModeInterrupt` |
 | `:PowerModeStatus` | Show current configuration |
 
 ## Presets
 
 | Preset | Characters | Description |
 |--------|-----------|-------------|
-| `explosion` | ◆◇▲▼◈ | Radial burst, 70% upward bias (default) |
+| `rightburst` | →➜➤▸⊳› | 80% rightward arrows (default) |
+| `stars` | ✦✧⋆✶✸✹✺⊹ | Twinkling stars near cursor |
+| `explosion` | ◆◇▲▼◈ | Radial burst, 70% upward bias |
 | `fountain` | │╎┃╏╵ | Narrow upward geyser with gravity arc |
-| `rightburst` | →➜➤▸⊳› | 80% rightward arrows |
 | `shockwave` | ░▒▓█ | Expanding ring, chars cycle as ring ages |
 | `emoji` | ⭐🌟✨💫🔥💥 | Scattered emoji with upward float |
-| `stars` | ✦✧⋆✶✸✹✺⊹ | Twinkling stars near cursor |
 | `disintegrate` | *(buffer text)* | Nearby characters shatter outward |
 | `fire` | 🔥▓▒░•· | Downward embers (backspace only) |
 
@@ -178,14 +130,15 @@ Switch at runtime: `:PowerModeStyle fountain`
 
 ## Fire Wall (Cacafire)
 
-Rising fire from the bottom of the editor, intensity scales with combo level.
+Rising fire from the bottom of the editor using a 2D heat-buffer algorithm
+(inspired by cacafire). Intensity scales with combo level.
 
 | Mode | Characters | Description |
 |------|-----------|-------------|
 | `none` | — | Off (default) |
-| `ember_rise` | `· • ░ ▒ *` | Sparse drifting embers from bottom edge |
-| `fire_columns` | `█ ▓ ▒ ░ ▲ ^ 🔥` | Dense ASCII fire wall (classic cacafire) |
-| `inferno` | `🔥 █ ▓ ▒ ░ ▲ ^ * ✦` | Full-width maximum intensity |
+| `ember_rise` | `█ ▓ ▒ ░ ·` | Gentle flickering embers from bottom edge |
+| `fire_columns` | `█ ▓ ▒ ░ ·` | Classic cacafire — dense heat-buffer wall |
+| `inferno` | `█ ▓ ▒ ░ ·` | Full-width raging fire |
 
 Switch at runtime: `:PowerModeFireWall fire_columns`
 
@@ -196,12 +149,12 @@ Switch at runtime: `:PowerModeFireWall fire_columns`
 
 ```lua
 require("power-mode").setup({
-  -- Enable power mode when Neovim starts
-  auto_enable = false,
+  -- Enable power mode when Neovim starts (default: true)
+  auto_enable = true,
 
   -- Particle system
   particles = {
-    preset = "explosion",       -- Built-in preset name or "custom"
+    preset = "rightburst",      -- Built-in preset name or "custom"
     cancel_on_new = true,       -- Fade out previous particles on new keystroke
     cancel_fadeout_ms = 80,     -- Fadeout duration for cancelled particles (ms)
     count = { 6, 10 },         -- { min, max } particles per keystroke
@@ -271,12 +224,9 @@ require("power-mode").setup({
     restore_delay = 50,      -- ms before restoring viewport (scroll mode)
   },
 
-  -- Fire wall (cacafire) — rising fire from bottom edge
+  -- Fire wall (cacafire heat-buffer) — rising fire from bottom edge
   fire_wall = {
     mode = "none",           -- "none"|"ember_rise"|"fire_columns"|"inferno"
-    max_height = 8,          -- Max rows from bottom at max combo
-    base_height = 2,         -- Min rows at combo level 0
-    colors = { 5, 6, 1 },   -- Color indices (orange, gold, cyan by default)
   },
 
   -- Animation engine

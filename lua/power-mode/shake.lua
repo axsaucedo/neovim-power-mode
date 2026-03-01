@@ -24,19 +24,34 @@ end
 
 function M._scroll_shake(level, cfg)
   local magnitude = cfg.shake.magnitude or math.min(1 + level, 3)
-  local current_top = vim.fn.line("w0")
-  local dir = math.random() > 0.5
-  local new_top = dir and (current_top + magnitude) or (current_top - magnitude)
-  new_top = math.max(1, new_top)
 
-  pcall(vim.fn.winrestview, { topline = new_top })
+  -- Save full view state to restore exactly
+  local saved_view = vim.fn.winsaveview()
+  local total_lines = vim.fn.line("$")
+  local win_height = vim.fn.winheight(0)
 
+  -- Skip shake if the file is too short to scroll
+  if total_lines <= win_height then return end
+
+  -- Always do a paired up-then-down (or down-then-up) motion
+  -- Pick direction: shift topline up or down
+  local dir = math.random() > 0.5 and magnitude or -magnitude
+  local new_top = saved_view.topline + dir
+  new_top = math.max(1, math.min(new_top, total_lines - win_height + 1))
+
+  -- Only shake if the shift actually moves the viewport
+  if new_top == saved_view.topline then return end
+
+  pcall(vim.fn.winrestview, { topline = new_top, lnum = saved_view.lnum, col = saved_view.col, curswant = saved_view.curswant })
+
+  -- Cancel any previous pending restore
   if shake_timer then
     pcall(function() shake_timer:stop() shake_timer:close() end)
   end
   shake_timer = vim.loop.new_timer()
   shake_timer:start(cfg.shake.restore_delay, 0, vim.schedule_wrap(function()
-    pcall(vim.fn.winrestview, { topline = current_top })
+    -- Restore exact original view state (topline + cursor position)
+    pcall(vim.fn.winrestview, saved_view)
     if shake_timer then
       pcall(function() shake_timer:stop() shake_timer:close() end)
       shake_timer = nil
