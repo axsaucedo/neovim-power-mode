@@ -33,6 +33,16 @@ function M.setup(opts)
   -- Wire engine modules (avoids circular requires)
   engine.set_modules(particles, fire, renderer, combo)
 
+  -- Re-create highlight groups whenever a colorscheme is loaded
+  -- (colorschemes run :highlight clear which wipes our groups)
+  local hl_augroup = vim.api.nvim_create_augroup("PowerModeHighlights", { clear = true })
+  vim.api.nvim_create_autocmd("ColorScheme", {
+    group = hl_augroup,
+    callback = function()
+      highlights.setup()
+    end,
+  })
+
   _setup_called = true
   local cfg = config.get()
   if cfg.auto_enable then
