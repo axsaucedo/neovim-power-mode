@@ -94,7 +94,7 @@ function M.init()
   if ok then
     win = w_handle
     pcall(vim.api.nvim_win_set_option, win, "winhighlight",
-      "Normal:PowerModeCombo0,FloatBorder:PowerModeCombo0")
+      "Normal:PowerModeCombo0,NormalFloat:PowerModeCombo0,FloatBorder:PowerModeCombo0")
   end
 
   M.render()
@@ -169,7 +169,7 @@ function M.increment()
   if win and vim.api.nvim_win_is_valid(win) then
     local hl = "PowerModeCombo" .. state.level
     pcall(vim.api.nvim_win_set_option, win, "winhighlight",
-      "Normal:" .. hl .. ",FloatBorder:" .. hl)
+      "Normal:" .. hl .. ",NormalFloat:" .. hl .. ",FloatBorder:" .. hl)
   end
 
   M.render()

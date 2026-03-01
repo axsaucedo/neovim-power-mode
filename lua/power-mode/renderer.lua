@@ -100,8 +100,9 @@ function M.render(particles)
 
     local blend = math.floor(100 * (1 - p.lifetime / p.max_lifetime))
     pcall(vim.api.nvim_win_set_option, entry.win, "winblend", blend)
+    local hl_name = "PowerModeParticle" .. p.color_idx
     pcall(vim.api.nvim_win_set_option, entry.win, "winhighlight",
-      "Normal:PowerModeParticle" .. p.color_idx)
+      "Normal:" .. hl_name .. ",NormalFloat:" .. hl_name)
 
     pool_idx = pool_idx + 1
     ::continue::

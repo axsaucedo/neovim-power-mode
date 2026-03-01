@@ -1,4 +1,4 @@
-# ⚡ neovim-power-mode
+# neovim-power-mode
 
 **VS Code Power Mode for Neovim** — animated particle explosions, combo counter, screen shake, and cyberpunk neon colors on every keystroke.
 
@@ -8,7 +8,7 @@
 <!-- TODO: Add demo GIF here -->
 <!-- ![Demo](docs/demo.gif) -->
 
-## ✨ Features
+## Features
 
 - **Particle explosions** on every keystroke with physics (gravity, drag, velocity)
 - **Combo counter** with streak tracking, timeout bar, level escalation, and exclamation phrases
@@ -52,10 +52,40 @@ use {
 ### [vim-plug](https://github.com/junegunn/vim-plug)
 
 ```vim
-Plug 'your-username/neovim-power-mode'
+Plug 'axsaucedo/neovim-power-mode'
+```
 
-" In your init.vim:
+Then call `setup()` **after** `plug#end()` in your `init.vim`.
+
+> **⚠️ vim-plug heredoc warning**: Vimscript treats `"` as a comment character.
+> Inside a `lua << EOF` block, any line starting with `"` becomes an
+> unterminated Lua string and causes `E5107`. The `EOF` terminator must also
+> start at column 0 (no leading whitespace).
+>
+> **Safest approach** — use the single-line form:
+
+```vim
+call plug#end()
+
+" Minimal (no options):
 lua require("power-mode").setup()
+
+" With options (use vim globals — no lua heredoc needed):
+let g:power_mode_auto_enable = 1
+let g:power_mode_preset = 'explosion'
+lua require("power-mode").setup()
+```
+
+> If you must use a heredoc, ensure `EOF` is at column 0 and contains no
+> vimscript comments (`"...`) inside the block:
+
+```vim
+lua << EOF
+require("power-mode").setup({
+  auto_enable = true,
+  preset = "explosion",
+})
+EOF
 ```
 
 ### [mini.deps](https://github.com/echasnovski/mini.deps)
@@ -77,12 +107,16 @@ git clone https://github.com/axsaucedo/neovim-power-mode.git \
 
 ### .vimrc
 
-If you are using vimrc in your neovim, you can add it inside a `lua` block.
+If you are using `init.vim` (vimscript config), use vim globals to configure
+and a single-line Lua call to initialize — **no heredoc required**:
 
-```
-lua << EOF
+```vim
+" Set options via vim globals (optional)
+let g:power_mode_auto_enable = 1
+let g:power_mode_preset = 'explosion'
+
+" Single-line init — safe with any plugin manager
 lua require("power-mode").setup()
-EOF
 ```
 
 ### Manual

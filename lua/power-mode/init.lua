@@ -12,6 +12,7 @@ local fire = require("power-mode.presets.fire")
 local M = {}
 
 local enabled = false
+local _setup_called = false
 local augroup = nil
 local stop_timer = nil
 local on_key_ns = nil
@@ -32,6 +33,7 @@ function M.setup(opts)
   -- Wire engine modules (avoids circular requires)
   engine.set_modules(particles, fire, renderer, combo)
 
+  _setup_called = true
   local cfg = config.get()
   if cfg.auto_enable then
     M.enable()
@@ -39,6 +41,9 @@ function M.setup(opts)
 end
 
 function M.enable()
+  if not _setup_called then
+    M.setup()
+  end
   if enabled then return end
   enabled = true
 
