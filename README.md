@@ -10,22 +10,22 @@
 
 ## ✨ Features
 
-- 🎆 **Particle explosions** on every keystroke with physics (gravity, drag, velocity)
-- 🔢 **Combo counter** with streak tracking, timeout bar, level escalation, and exclamation phrases
-- 📳 **Screen shake** — combo window jitter, viewport scroll, or macOS window shake
-- 🎨 **Cyberpunk neon palette** — 8 configurable colors with `termguicolors` and cterm fallbacks
-- 🔥 **Backspace fire effect** — ember particles when deleting text
-- 🎯 **8 built-in presets** — explosion, fountain, rightburst, shockwave, emoji, stars, disintegrate, fire
-- ⚙️ **Fully configurable** — every parameter tunable via Lua `setup()` or vim global variables
-- 🧩 **Custom presets** — define your own particle characters, physics, and direction
-- 📦 **Pure Lua** — no external dependencies, no compilation required
+- **Particle explosions** on every keystroke with physics (gravity, drag, velocity)
+- **Combo counter** with streak tracking, timeout bar, level escalation, and exclamation phrases
+- **Screen shake** — combo window jitter, viewport scroll, or macOS window shake
+- **Cyberpunk neon palette** — 8 configurable colors with `termguicolors` and cterm fallbacks
+- **Backspace fire effect** — ember particles when deleting text
+- **8 built-in presets** — explosion, fountain, rightburst, shockwave, emoji, stars, disintegrate, fire
+- **Fully configurable** — every parameter tunable via Lua `setup()` or vim global variables
+- **Custom presets** — define your own particle characters, physics, and direction
+- **Pure Lua** — no external dependencies, no compilation required
 
-## 📋 Requirements
+## Requirements
 
 - **Neovim ≥ 0.9**
 - `set termguicolors` recommended (falls back to 256-color cterm otherwise)
 
-## 📦 Installation
+## Installation
 
 ### [lazy.nvim](https://github.com/folke/lazy.nvim)
 
@@ -65,6 +65,26 @@ MiniDeps.add({ source = "your-username/neovim-power-mode" })
 require("power-mode").setup()
 ```
 
+### No plugin manager
+
+If you are using no plugin manager you can clone it directly.
+
+```
+mkdir -p ~/.local/share/nvim/site/pack/plugins/start/plugin
+git clone https://github.com/axsaucedo/neovim-power-mode.git \
+     ~/.local/share/nvim/site/pack/plugins/start/neovim-power-mode
+```
+
+### .vimrc
+
+If you are using vimrc in your neovim, you can add it inside a `lua` block.
+
+```
+lua << EOF
+lua require("power-mode").setup()
+EOF
+```
+
 ### Manual
 
 ```sh
@@ -72,7 +92,7 @@ git clone https://github.com/your-username/neovim-power-mode \
   ~/.local/share/nvim/site/pack/plugins/start/neovim-power-mode
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 ```lua
 -- Minimal: just call setup and toggle
@@ -94,7 +114,7 @@ require("power-mode").setup({
 })
 ```
 
-## ⌨️ Commands
+## Commands
 
 | Command | Description |
 |---------|-------------|
@@ -106,7 +126,7 @@ require("power-mode").setup({
 | `:PowerModeCancel {on\|off}` | Toggle cancel-previous-particles |
 | `:PowerModeStatus` | Show current configuration |
 
-## 🎆 Presets
+## Presets
 
 | Preset | Characters | Description |
 |--------|-----------|-------------|
@@ -121,7 +141,7 @@ require("power-mode").setup({
 
 Switch at runtime: `:PowerModeStyle fountain`
 
-## ⚙️ Configuration
+## Configuration
 
 <details>
 <summary><strong>Full configuration with defaults</strong></summary>
@@ -213,7 +233,7 @@ require("power-mode").setup({
 
 </details>
 
-## 🧩 Custom Presets
+## Custom Presets
 
 Define entirely custom particle behavior:
 
@@ -247,7 +267,7 @@ require("power-mode").setup({
 })
 ```
 
-## 🎨 Colors
+## Colors
 
 The plugin uses 8 color slots for particles. Override any slot:
 
@@ -267,7 +287,7 @@ let g:power_mode_color_1 = '#FF0000'
 
 > **Tip:** Add `set termguicolors` to your config for the full neon experience.
 
-## 🔢 Combo System
+## Combo System
 
 The combo counter tracks consecutive keystrokes:
 
