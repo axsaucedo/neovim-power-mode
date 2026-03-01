@@ -5,8 +5,21 @@
 [![Neovim](https://img.shields.io/badge/Neovim-≥0.9-green?style=flat&logo=neovim)](https://neovim.io)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-<!-- TODO: Add demo GIF here -->
-<!-- ![Demo](docs/demo.gif) -->
+<table>
+<tr>
+
+<td>
+<h2>Default Setup</h2>
+<img src="doc/setup-default.gif">
+</td>
+
+<td>
+<h2>Default + Shake + Firewall</h2>
+<img src="doc/setup-max.gif">
+</td>
+
+</tr>
+</table>
 
 ## Features
 
@@ -58,12 +71,7 @@ use { "axsaucedo/neovim-power-mode" }
 Plug 'axsaucedo/neovim-power-mode'
 ```
 
-> **⚠️ vim-plug heredoc warning**: Vimscript treats `"` as a comment character.
-> Inside a `lua << EOF` block, any line starting with `"` becomes an
-> unterminated Lua string and causes `E5107`. The `EOF` terminator must also
-> start at column 0 (no leading whitespace).
->
-> To customize, use vim globals (no heredoc needed):
+And you can then configure with vim globals:
 
 ```vim
 call plug#end()
