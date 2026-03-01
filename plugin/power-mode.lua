@@ -82,13 +82,21 @@ end, {
 })
 
 vim.api.nvim_create_user_command("PowerModeFireWall", function(opts)
-  require("power-mode.fire_wall").set_mode(opts.args)
+  local arg = opts.args
+  if arg == "on" then
+    require("power-mode.fire_wall").set_enabled(true)
+  elseif arg == "off" then
+    require("power-mode.fire_wall").set_enabled(false)
+  else
+    -- Legacy mode names still accepted
+    require("power-mode.fire_wall").set_mode(arg)
+  end
 end, {
   nargs = 1,
   complete = function()
-    return { "none", "ember_rise", "fire_columns", "inferno" }
+    return { "on", "off" }
   end,
-  desc = "Set fire wall mode: none, ember_rise, fire_columns, or inferno",
+  desc = "Toggle fire wall: on or off",
 })
 
 vim.api.nvim_create_user_command("PowerModeStatus", function()

@@ -108,7 +108,7 @@ require("power-mode").setup({
 | `:PowerModeDisable` | Disable power mode |
 | `:PowerModeStyle {preset}` | Switch particle preset |
 | `:PowerModeShake {mode}` | Set shake mode: `none`, `scroll`, `applescript` |
-| `:PowerModeFireWall {mode}` | Set fire wall mode: `none`, `ember_rise`, `fire_columns`, `inferno` |
+| `:PowerModeFireWall {on\|off}` | Toggle fire wall on or off |
 | `:PowerModeInterrupt {on\|off}` | Toggle interrupt-previous-particles |
 | `:PowerModeCancel {on\|off}` | *(Deprecated)* Alias for `:PowerModeInterrupt` |
 | `:PowerModeStatus` | Show current configuration |
@@ -131,16 +131,16 @@ Switch at runtime: `:PowerModeStyle fountain`
 ## Fire Wall (Cacafire)
 
 Rising fire from the bottom of the editor using a 2D heat-buffer algorithm
-(inspired by cacafire). Intensity scales with combo level.
+(inspired by cacafire). The fire grows with your combo level:
 
-| Mode | Characters | Description |
-|------|-----------|-------------|
-| `none` | — | Off (default) |
-| `ember_rise` | `█ ▓ ▒ ░ ·` | Gentle flickering embers from bottom edge |
-| `fire_columns` | `█ ▓ ▒ ░ ·` | Classic cacafire — dense heat-buffer wall |
-| `inferno` | `█ ▓ ▒ ░ ·` | Full-width raging fire |
+- **Levels 0–1**: No fire
+- **Level 2**: Fire appears (2 rows)
+- **Every 2 levels after**: +1 row of fire
 
-Switch at runtime: `:PowerModeFireWall fire_columns`
+When your combo resets (timeout or leaving insert mode), the fire naturally
+cools and fades away.
+
+Toggle at runtime: `:PowerModeFireWall on`
 
 ## Configuration
 
@@ -226,7 +226,7 @@ require("power-mode").setup({
 
   -- Fire wall (cacafire heat-buffer) — rising fire from bottom edge
   fire_wall = {
-    mode = "none",           -- "none"|"ember_rise"|"fire_columns"|"inferno"
+    enabled = false,         -- true | false
   },
 
   -- Animation engine
@@ -339,7 +339,7 @@ let g:power_mode_auto_enable = 1
 let g:power_mode_particle_preset = 'explosion'
 let g:power_mode_particle_cancel_on_new = 1
 let g:power_mode_shake_mode = 'scroll'
-let g:power_mode_fire_wall_mode = 'fire_columns'
+let g:power_mode_fire_wall_enabled = 1
 let g:power_mode_combo_enabled = 1
 let g:power_mode_combo_position = 'top-right'
 let g:power_mode_engine_fps = 25

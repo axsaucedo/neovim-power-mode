@@ -13,6 +13,13 @@ local state = {
   timeout_remaining = 0,
 }
 
+-- Callback fired when combo resets (timeout or explicit)
+local on_reset_cb = nil
+
+function M.set_on_reset(cb)
+  on_reset_cb = cb
+end
+
 local win = nil
 local buf = nil
 local base_row = 1
@@ -185,6 +192,11 @@ function M.reset()
   if win and vim.api.nvim_win_is_valid(win) then
     pcall(vim.api.nvim_win_set_option, win, "winhighlight",
       "Normal:PowerModeCombo0,NormalFloat:PowerModeCombo0,FloatBorder:PowerModeCombo0")
+  end
+
+  -- Notify listeners (e.g., fire_wall cooldown)
+  if on_reset_cb then
+    pcall(on_reset_cb)
   end
 
   M.render()

@@ -135,13 +135,13 @@ done
 MSGS=$(get_messages)
 assert_not_contains "No errors switching presets" "E[0-9][0-9][0-9]:|stack traceback" "$MSGS"
 
-# ── Test 9: PowerModeFireWall mode switching ─────────────────────────────────
+# ── Test 9: PowerModeFireWall on/off ──────────────────────────────────────────
 echo "▶ Test 9: :PowerModeFireWall modes"
-for MODE in ember_rise fire_columns inferno none; do
+for MODE in on off; do
   send_cmd "PowerModeFireWall $MODE" 0.5
 done
 MSGS=$(get_messages)
-assert_contains "Fire wall mode set" "Fire wall mode" "$MSGS"
+assert_contains "Fire wall mode set" "Fire wall:" "$MSGS"
 assert_not_contains "No errors switching fire wall modes" "E[0-9][0-9][0-9]:|stack traceback" "$MSGS"
 
 # ── Test 10: Status shows fire wall ──────────────────────────────────────────

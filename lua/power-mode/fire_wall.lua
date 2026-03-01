@@ -1,9 +1,9 @@
 --- Fire wall module for neovim-power-mode (cacafire heat-buffer algorithm)
 --- Self-managed floating window at the bottom of the editor.
 --- Classic 2D heat buffer: continuously seed bottom → propagate upward with cooling → render
---- Height grows with combo streak: starts at 1 row after 2 keystrokes, +1 row every 2 more.
---- Top cells rendered transparent (winblend + NONE bg) so editor shows through.
---- Four modes: none | ember_rise | fire_columns | inferno
+--- Height grows with combo level: hidden for levels 0-1, 2 rows at level 2, +1 row per 2 levels.
+--- Fades out naturally when combo resets (heat cools without re-seeding).
+--- Toggle: enabled (true/false)
 local config = require("power-mode.config")
 local utils = require("power-mode.utils")
 
@@ -20,10 +20,15 @@ local fire_buf = nil
 
 -- Current combo state (set by spawn, used by update for continuous seeding)
 local current_combo_level = 0
-local current_streak = 0
 
--- Whether fire wall is active (mode ~= none and has been initialized)
+-- Whether actively seeding heat (true while typing, false during cooldown)
 local is_active = false
+
+-- Whether we're in cooldown phase (heat still visible but no longer seeded)
+local cooling_down = false
+
+-- Last visible_rows value (preserved during cooldown for smooth fade)
+local last_visible_rows = 0
 
 -- Fire highlight namespace
 local fire_ns = vim.api.nvim_create_namespace("power_mode_fire")
@@ -47,35 +52,17 @@ local fire_hl_groups = {
   { name = "PowerModeFire5", threshold = 25,  fg = "#884400", ctermfg = 94  },  -- dim ember
 }
 
--- Mode parameters
-local mode_params = {
-  ember_rise = {
-    base_heat = 120,
-    heat_per_level = 25,
-    cooling = 10,
-    seed_density = 0.4,
-    max_height_frac = 0.12,
-    min_streak = 2,       -- combo keystrokes before fire starts
-    rows_per_streak = 2,  -- add 1 row every N keystrokes
-  },
-  fire_columns = {
-    base_heat = 200,
-    heat_per_level = 12,
-    cooling = 5,
-    seed_density = 0.8,
-    max_height_frac = 0.20,
-    min_streak = 2,
-    rows_per_streak = 2,
-  },
-  inferno = {
-    base_heat = 240,
-    heat_per_level = 4,
-    cooling = 2,
-    seed_density = 0.95,
-    max_height_frac = 0.35,
-    min_streak = 2,
-    rows_per_streak = 2,
-  },
+-- Fire parameters (fire_columns-based, the best-performing mode)
+local fire_params = {
+  base_heat = 200,
+  heat_per_level = 12,
+  cooling = 5,
+  seed_density = 0.8,
+  max_height_frac = 0.20,
+  -- Level-based growth: no fire for levels 0-1, 2 rows at level 2, +1 row per 2 levels
+  min_level = 2,
+  base_rows = 2,
+  levels_per_row = 2,
 }
 
 local function create_fire_highlights()
@@ -123,11 +110,13 @@ local function heat_to_hl(heat)
   return "PowerModeFireBg"
 end
 
---- Compute how many rows of fire should be visible based on combo streak
-local function compute_visible_rows(params, max_rows)
-  if current_streak < params.min_streak then return 0 end
-  local extra = current_streak - params.min_streak
-  local rows = 1 + math.floor(extra / params.rows_per_streak)
+--- Compute how many rows of fire should be visible based on combo level
+--- Level 0-1: 0 rows, Level 2: base_rows, then +1 row every levels_per_row levels
+local function compute_visible_rows(max_rows)
+  local p = fire_params
+  if current_combo_level < p.min_level then return 0 end
+  local extra_levels = current_combo_level - p.min_level
+  local rows = p.base_rows + math.floor(extra_levels / p.levels_per_row)
   return math.min(rows, max_rows)
 end
 
@@ -190,17 +179,14 @@ end
 
 local function seed_bottom_row()
   local cfg = config.get()
-  local fw = cfg.fire_wall
-  if fw.mode == "none" then return end
-
-  local params = mode_params[fw.mode]
-  if not params or grid_h == 0 then return end
+  if not cfg.fire_wall.enabled then return end
+  if grid_h == 0 then return end
 
   local level = math.min(current_combo_level or 0, 4)
-  local max_heat = math.min(255, params.base_heat + level * params.heat_per_level)
+  local max_heat = math.min(255, fire_params.base_heat + level * fire_params.heat_per_level)
 
   for x = 1, grid_w do
-    if math.random() < params.seed_density then
+    if math.random() < fire_params.seed_density then
       grid[grid_h][x] = utils.random_int(math.floor(max_heat * 0.7), max_heat)
     else
       grid[grid_h][x] = utils.random_int(0, math.floor(max_heat * 0.15))
@@ -208,30 +194,48 @@ local function seed_bottom_row()
   end
 end
 
+--- Check if the grid has any heat remaining
+local function grid_has_heat()
+  for y = 1, grid_h do
+    for x = 1, grid_w do
+      if grid[y] and grid[y][x] and grid[y][x] > 5 then
+        return true
+      end
+    end
+  end
+  return false
+end
+
 --- Propagate heat upward and render to the floating window
 function M.update(_dt)
   local cfg = config.get()
-  local fw = cfg.fire_wall
-  if fw.mode == "none" then
-    M._hide_window()
-    return
-  end
-
-  local params = mode_params[fw.mode]
-  if not params then
+  if not cfg.fire_wall.enabled then
     M._hide_window()
     return
   end
 
   -- Compute max grid height and ensure grid
   local dims = utils.get_editor_dimensions()
-  local max_grid_h = math.max(2, math.floor(dims.height * params.max_height_frac))
+  local max_grid_h = math.max(2, math.floor(dims.height * fire_params.max_height_frac))
   ensure_grid(dims.width, max_grid_h)
 
   if grid_h == 0 then return end
 
-  -- Compute visible rows based on combo streak
-  local visible_rows = compute_visible_rows(params, grid_h)
+  -- Compute visible rows based on combo level
+  local visible_rows
+  if cooling_down then
+    -- During cooldown, keep last visible height but check if heat is gone
+    visible_rows = last_visible_rows
+    if not grid_has_heat() then
+      cooling_down = false
+      last_visible_rows = 0
+      M._hide_window()
+      return
+    end
+  else
+    visible_rows = compute_visible_rows(grid_h)
+    last_visible_rows = visible_rows
+  end
 
   if visible_rows <= 0 then
     M._hide_window()
@@ -241,8 +245,8 @@ function M.update(_dt)
   -- Ensure window sized to visible rows
   if not ensure_window(visible_rows) then return end
 
-  -- Continuously re-seed bottom row every frame (like real cacafire)
-  if is_active then
+  -- Seed bottom row only when actively typing (not during cooldown)
+  if is_active and not cooling_down then
     seed_bottom_row()
   end
 
@@ -253,14 +257,15 @@ function M.update(_dt)
       local left = grid[y + 1][math.max(1, x - 1)]
       local right = grid[y + 1][math.min(grid_w, x + 1)]
       local avg = (below + left + right) / 3
-      local cool = utils.random_int(0, params.cooling)
+      local cool = utils.random_int(0, fire_params.cooling)
       grid[y][x] = math.max(0, math.floor(avg - cool))
     end
   end
 
-  -- Cool the bottom row slightly to create flicker
+  -- Cool the bottom row (faster during cooldown for visible fade)
+  local cool_factor = cooling_down and 1.5 or 0.3
   for x = 1, grid_w do
-    local cool = utils.random_int(0, math.floor(params.cooling * 0.3))
+    local cool = utils.random_int(0, math.floor(fire_params.cooling * cool_factor))
     grid[grid_h][x] = math.max(0, grid[grid_h][x] - cool)
   end
 
@@ -307,11 +312,17 @@ function M._hide_window()
   end
 end
 
---- Called on keystroke to update combo level/streak and activate fire
-function M.spawn(combo_level, streak)
+--- Called on keystroke to update combo level and activate fire
+function M.spawn(combo_level, _streak)
   current_combo_level = combo_level or 0
-  current_streak = streak or 0
   is_active = true
+  cooling_down = false
+end
+
+--- Begin cooldown: stop seeding, let heat fade naturally
+function M.cool_down()
+  is_active = false
+  cooling_down = true
 end
 
 --- For engine compatibility (fire wall manages its own window, returns empty)
@@ -325,8 +336,9 @@ end
 
 function M.clear()
   is_active = false
-  current_streak = 0
+  cooling_down = false
   current_combo_level = 0
+  last_visible_rows = 0
   grid = {}
   grid_w = 0
   grid_h = 0
@@ -341,25 +353,40 @@ function M.clear()
   fire_buf = nil
 end
 
-function M.set_mode(mode)
-  if mode ~= "none" and not mode_params[mode] then
-    vim.notify("[power-mode] Unknown fire wall mode: " .. tostring(mode), vim.log.levels.ERROR)
-    return
-  end
+function M.set_enabled(val)
   local cfg = config.get()
-  cfg.fire_wall.mode = mode
-  if mode == "none" then
-    M.clear()
-  else
+  cfg.fire_wall.enabled = val and true or false
+  if cfg.fire_wall.enabled then
     create_fire_highlights()
     is_active = true
+    cooling_down = false
+    vim.notify("⚡ Fire wall: on", vim.log.levels.INFO)
+  else
+    M.clear()
+    vim.notify("⚡ Fire wall: off", vim.log.levels.INFO)
   end
-  vim.notify("⚡ Fire wall mode: " .. mode, vim.log.levels.INFO)
 end
 
+--- Legacy set_mode: "none" → disabled, anything else → enabled
+function M.set_mode(mode)
+  if mode == "none" or mode == "off" then
+    M.set_enabled(false)
+  elseif mode == "on" or mode == "ember_rise" or mode == "fire_columns" or mode == "inferno" then
+    M.set_enabled(true)
+  else
+    vim.notify("[power-mode] Unknown fire wall mode: " .. tostring(mode), vim.log.levels.ERROR)
+  end
+end
+
+function M.is_enabled()
+  local cfg = config.get()
+  return cfg.fire_wall.enabled
+end
+
+--- Legacy get_mode for backward compat
 function M.get_mode()
   local cfg = config.get()
-  return cfg.fire_wall.mode
+  return cfg.fire_wall.enabled and "on" or "none"
 end
 
 return M

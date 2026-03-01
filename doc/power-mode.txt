@@ -50,8 +50,8 @@ Then toggle with |:PowerModeToggle| or disable with |:PowerModeDisable|.
                     rightburst, stars, explosion, fountain, shockwave,
                     disintegrate, emoji.
 *:PowerModeShake*     Set shake mode: none, scroll, applescript.
-*:PowerModeFireWall*  Set fire wall mode: none, ember_rise, fire_columns,
-                    inferno. Intensity scales with combo level.
+*:PowerModeFireWall*  Toggle fire wall: on, off. Fire grows with combo
+                    level and fades when combo resets.
 *:PowerModeInterrupt* Toggle interrupt-on-new: on, off.
 *:PowerModeCancel*    (Deprecated) Alias for |:PowerModeInterrupt|.
 *:PowerModeStatus*    Show current configuration summary.
@@ -105,7 +105,7 @@ Pass a table to `setup()`. All fields are optional: >lua
       restore_delay = 50,
     },
     fire_wall = {
-      mode = "none",         -- "none"|"ember_rise"|"fire_columns"|"inferno"
+      enabled = false,       -- true | false
     },
     engine = {
       fps = 25,
@@ -144,19 +144,20 @@ Switch at runtime: `:PowerModeStyle fountain`
 5a. FIRE WALL (CACAFIRE)                            *power-mode-fire-wall*
 
 Rising fire from the bottom of the editor using a 2D heat-buffer algorithm
-(inspired by cacafire). Intensity scales with combo level.
+(inspired by cacafire). The fire grows with your combo level:
 
-  Mode           Description~
-  none           Off (default)
-  ember_rise     Gentle flickering embers from bottom edge
-  fire_columns   Classic cacafire dense heat-buffer wall
-  inferno        Full-width raging fire
+  Levels 0–1:  No fire
+  Level 2:     Fire appears (2 rows)
+  Every 2 levels after: +1 row of fire
 
-Switch at runtime: `:PowerModeFireWall fire_columns`
+When your combo resets (timeout or leaving insert mode), the fire naturally
+cools and fades away.
+
+Toggle at runtime: `:PowerModeFireWall on`
 
 Configure: >lua
   fire_wall = {
-    mode = "fire_columns",  -- "none"|"ember_rise"|"fire_columns"|"inferno"
+    enabled = true,  -- true | false
   }
 <
 

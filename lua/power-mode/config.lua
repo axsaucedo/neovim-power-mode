@@ -74,7 +74,7 @@ local defaults = {
   },
 
   fire_wall = {
-    mode = "none",        -- "none" | "ember_rise" | "fire_columns" | "inferno"
+    enabled = false,       -- true | false
   },
 
   engine = {
@@ -108,7 +108,7 @@ local function read_vim_globals()
     { "g:power_mode_shake_mode", { "shake", "mode" } },
     { "g:power_mode_shake_interval", { "shake", "interval" } },
     { "g:power_mode_shake_restore_delay", { "shake", "restore_delay" } },
-    { "g:power_mode_fire_wall_mode", { "fire_wall", "mode" } },
+    { "g:power_mode_fire_wall_enabled", { "fire_wall", "enabled" } },
     { "g:power_mode_engine_fps", { "engine", "fps" } },
     { "g:power_mode_engine_stop_delay", { "engine", "stop_delay" } },
   }
@@ -192,10 +192,21 @@ local function validate(cfg)
   end
 
   local fw = cfg.fire_wall
-  local valid_fw_modes = { none = true, ember_rise = true, fire_columns = true, inferno = true }
-  if fw.mode and not valid_fw_modes[fw.mode] then
-    vim.notify("[power-mode] fire_wall.mode must be none/ember_rise/fire_columns/inferno", vim.log.levels.WARN)
-    fw.mode = defaults.fire_wall.mode
+  if fw.enabled ~= nil and type(fw.enabled) ~= "boolean" then
+    -- Accept legacy mode strings for backward compat
+    if fw.enabled == "none" or fw.enabled == "off" then
+      fw.enabled = false
+    elseif type(fw.enabled) == "string" then
+      fw.enabled = true
+    else
+      vim.notify("[power-mode] fire_wall.enabled must be true/false", vim.log.levels.WARN)
+      fw.enabled = defaults.fire_wall.enabled
+    end
+  end
+  -- Legacy: if user passes fire_wall.mode, convert to enabled
+  if fw.mode ~= nil then
+    fw.enabled = fw.mode ~= "none"
+    fw.mode = nil
   end
 
   return cfg

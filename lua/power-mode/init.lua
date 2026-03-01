@@ -65,6 +65,11 @@ function M.enable()
   fire_wall.init()
   engine.start()
 
+  -- Fire wall cools down whenever combo resets (timeout or InsertLeave)
+  combo.set_on_reset(function()
+    fire_wall.cool_down()
+  end)
+
   augroup = vim.api.nvim_create_augroup("PowerMode", { clear = true })
 
   vim.api.nvim_create_autocmd("InsertCharPre", {
@@ -211,7 +216,7 @@ function M.status()
     "  Combo: " .. tostring(cfg.combo.enabled),
     "  FPS: " .. tostring(cfg.engine.fps),
     "  Backspace fire: " .. tostring(cfg.backspace.enabled),
-    "  Fire wall: " .. tostring(cfg.fire_wall.mode),
+    "  Fire wall: " .. tostring(cfg.fire_wall.enabled),
   }
   vim.notify(table.concat(lines, "\n"), vim.log.levels.INFO)
 end
