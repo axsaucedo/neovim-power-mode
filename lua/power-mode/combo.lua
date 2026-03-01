@@ -180,6 +180,13 @@ function M.reset()
   state.level = 0
   state.timeout_remaining = 0
   exclamation = ""
+
+  -- Reset combo window highlight back to default level 0
+  if win and vim.api.nvim_win_is_valid(win) then
+    pcall(vim.api.nvim_win_set_option, win, "winhighlight",
+      "Normal:PowerModeCombo0,NormalFloat:PowerModeCombo0,FloatBorder:PowerModeCombo0")
+  end
+
   M.render()
 end
 

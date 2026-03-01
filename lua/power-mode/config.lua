@@ -53,7 +53,7 @@ local defaults = {
     shake_intensity = nil,
     exclamations = {
       "UNSTOPPABLE!", "GODLIKE!", "RAMPAGE!", "MEGA KILL!",
-      "DOMINATING!", "WICKED SICK!", "LEGENDARY!",
+      "SUPERCHARGED!", "ON FIRE!", "LEGENDARY!",
     },
     exclamation_interval = 10,
     exclamation_duration = 1500,

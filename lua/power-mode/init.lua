@@ -41,6 +41,7 @@ function M.setup(opts)
     group = hl_augroup,
     callback = function()
       highlights.setup()
+      fire_wall.init()  -- re-create fire highlight groups
     end,
   })
 
@@ -61,6 +62,7 @@ function M.enable()
   highlights.setup()
   renderer.init()
   combo.init()
+  fire_wall.init()
   engine.start()
 
   augroup = vim.api.nvim_create_augroup("PowerMode", { clear = true })

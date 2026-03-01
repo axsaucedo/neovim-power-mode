@@ -39,7 +39,7 @@ function M.start()
       if fire_mod then fire_mod.update(dt) end
       if fire_wall_mod then fire_wall_mod.update(dt) end
 
-      -- Merge all particle lists for rendering
+      -- Merge particle lists for rendering (fire wall manages its own window)
       local all = {}
       if particles_mod then
         for _, p in ipairs(particles_mod.get_active()) do all[#all + 1] = p end
