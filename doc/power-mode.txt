@@ -157,7 +157,9 @@ Toggle at runtime: `:PowerModeFireWall on`
 
 Configure: >lua
   fire_wall = {
-    enabled = true,  -- true | false
+    enabled = true,          -- true | false
+    bottom_offset = 2,       -- rows to skip at bottom (statusline/cmdline)
+    max_rows = 5,            -- maximum fire height in rows
   }
 <
 

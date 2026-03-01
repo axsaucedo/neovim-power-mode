@@ -75,6 +75,8 @@ local defaults = {
 
   fire_wall = {
     enabled = false,       -- true | false
+    bottom_offset = 2,     -- rows to skip at bottom (for statusline/cmdline)
+    max_rows = 5,          -- maximum fire height in rows
   },
 
   engine = {
@@ -109,6 +111,8 @@ local function read_vim_globals()
     { "g:power_mode_shake_interval", { "shake", "interval" } },
     { "g:power_mode_shake_restore_delay", { "shake", "restore_delay" } },
     { "g:power_mode_fire_wall_enabled", { "fire_wall", "enabled" } },
+    { "g:power_mode_fire_wall_bottom_offset", { "fire_wall", "bottom_offset" } },
+    { "g:power_mode_fire_wall_max_rows", { "fire_wall", "max_rows" } },
     { "g:power_mode_engine_fps", { "engine", "fps" } },
     { "g:power_mode_engine_stop_delay", { "engine", "stop_delay" } },
   }

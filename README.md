@@ -227,6 +227,8 @@ require("power-mode").setup({
   -- Fire wall (cacafire heat-buffer) — rising fire from bottom edge
   fire_wall = {
     enabled = false,         -- true | false
+    bottom_offset = 2,       -- rows to skip at bottom (statusline/cmdline)
+    max_rows = 5,            -- maximum fire height in rows
   },
 
   -- Animation engine

@@ -58,11 +58,10 @@ local fire_params = {
   heat_per_level = 12,
   cooling = 5,
   seed_density = 0.8,
-  max_height_frac = 0.20,
-  -- Level-based growth: no fire for levels 0-1, 2 rows at level 2, +1 row per 2 levels
+  -- Level-based growth: no fire for levels 0-1, 2 rows at level 2, +1 row per level after
   min_level = 2,
   base_rows = 2,
-  levels_per_row = 2,
+  levels_per_row = 1,
 }
 
 local function create_fire_highlights()
@@ -114,10 +113,12 @@ end
 --- Level 0-1: 0 rows, Level 2: base_rows, then +1 row every levels_per_row levels
 local function compute_visible_rows(max_rows)
   local p = fire_params
+  local cfg = config.get()
+  local cap = math.min(cfg.fire_wall.max_rows or 5, max_rows)
   if current_combo_level < p.min_level then return 0 end
   local extra_levels = current_combo_level - p.min_level
   local rows = p.base_rows + math.floor(extra_levels / p.levels_per_row)
-  return math.min(rows, max_rows)
+  return math.min(rows, cap)
 end
 
 local function ensure_window(visible_h)
@@ -141,7 +142,7 @@ local function ensure_window(visible_h)
     vim.bo[fire_buf].bufhidden = "wipe"
   end
 
-  local win_row = dims.height - visible_h - 1  -- position at bottom, above statusline
+  local win_row = dims.height - visible_h - (config.get().fire_wall.bottom_offset or 2)
 
   if not fire_win then
     local ok, w = pcall(vim.api.nvim_open_win, fire_buf, false, {
@@ -216,7 +217,7 @@ function M.update(_dt)
 
   -- Compute max grid height and ensure grid
   local dims = utils.get_editor_dimensions()
-  local max_grid_h = math.max(2, math.floor(dims.height * fire_params.max_height_frac))
+  local max_grid_h = math.max(2, cfg.fire_wall.max_rows or 5)
   ensure_grid(dims.width, max_grid_h)
 
   if grid_h == 0 then return end
