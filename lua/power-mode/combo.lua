@@ -72,44 +72,58 @@ local function compute_position(cfg)
   return row, col
 end
 
-function M.init()
-  M.cleanup()
+--- Ensure combo floating window exists; re-create if destroyed externally.
+--- Preserves combo state (streak, level, max) — only re-creates the UI.
+function M.ensure_window()
   local cfg = config.get()
   if not cfg.combo.enabled then return end
 
   local w = cfg.combo.width
   local h = cfg.combo.height
-  base_row, base_col = compute_position(cfg)
 
-  buf = vim.api.nvim_create_buf(false, true)
-  local empty_lines = {}
-  for _ = 1, h do empty_lines[#empty_lines + 1] = "" end
-  pcall(vim.api.nvim_buf_set_lines, buf, 0, -1, false, empty_lines)
-
-  local ok, w_handle = pcall(vim.api.nvim_open_win, buf, false, {
-    relative = "editor",
-    row = base_row,
-    col = base_col,
-    width = w,
-    height = h,
-    style = "minimal",
-    border = "rounded",
-    focusable = false,
-    noautocmd = true,
-    zindex = 100,
-  })
-  if ok then
-    win = w_handle
-    pcall(vim.api.nvim_win_set_option, win, "winhighlight",
-      "Normal:PowerModeCombo0,NormalFloat:PowerModeCombo0,FloatBorder:PowerModeCombo0")
+  -- Re-create buffer if needed
+  if not buf or not vim.api.nvim_buf_is_valid(buf) then
+    buf = vim.api.nvim_create_buf(false, true)
+    local empty_lines = {}
+    for _ = 1, h do empty_lines[#empty_lines + 1] = "" end
+    pcall(vim.api.nvim_buf_set_lines, buf, 0, -1, false, empty_lines)
   end
 
+  -- Re-create window if needed
+  if not win or not vim.api.nvim_win_is_valid(win) then
+    base_row, base_col = compute_position(cfg)
+    local ok, w_handle = pcall(vim.api.nvim_open_win, buf, false, {
+      relative = "editor",
+      row = base_row,
+      col = base_col,
+      width = w,
+      height = h,
+      style = "minimal",
+      border = "rounded",
+      focusable = false,
+      noautocmd = true,
+      zindex = 100,
+    })
+    if ok then
+      win = w_handle
+      local hl = "PowerModeCombo" .. state.level
+      pcall(vim.api.nvim_win_set_option, win, "winhighlight",
+        "Normal:" .. hl .. ",NormalFloat:" .. hl .. ",FloatBorder:" .. hl)
+    end
+  end
+end
+
+function M.init()
+  M.cleanup()
+  M.ensure_window()
   M.render()
 end
 
 function M.increment()
   local cfg = config.get()
   if not cfg.combo.enabled then return end
+
+  M.ensure_window()
 
   state.current_streak = state.current_streak + 1
   if state.current_streak > state.max_streak then
@@ -217,6 +231,7 @@ function M.update(dt)
 end
 
 function M.render()
+  M.ensure_window()
   if not buf or not vim.api.nvim_buf_is_valid(buf) then return end
   local cfg = config.get()
   local w = cfg.combo.width

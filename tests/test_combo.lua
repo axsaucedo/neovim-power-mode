@@ -48,6 +48,20 @@ assert_eq(cfg.combo.enabled, false, "combo disabled")
 config.resolve({})
 combo.cleanup()
 
+-- Test 6: ensure_window re-creates window after external close
+config.resolve({})
+combo.init()
+-- Simulate external close (dashboard plugin destroying the floating window)
+combo.cleanup()
+-- ensure_window should re-create the window and buffer without resetting state
+combo.ensure_window()
+-- After ensure, level should still be accessible (state preserved)
+assert_eq(combo.get_level(), 0, "level preserved after ensure_window re-create")
+assert_eq(combo.get_streak(), 0, "streak accessible after ensure_window re-create")
+
+-- Reset
+combo.cleanup()
+
 print(string.format("\n=== Combo Tests: %d passed, %d failed ===", pass, fail))
 if fail > 0 then
   vim.cmd("cquit! 1")
