@@ -155,6 +155,18 @@ function M.enable()
     end,
   })
 
+  -- Re-create combo window if closed externally (e.g., by dashboard plugins)
+  vim.api.nvim_create_autocmd("BufEnter", {
+    group = augroup,
+    callback = function()
+      if not enabled then return end
+      vim.schedule(function()
+        if not enabled then return end
+        combo.ensure_window()
+      end)
+    end,
+  })
+
   vim.notify("⚡ Power Mode ENABLED", vim.log.levels.INFO)
 end
 
