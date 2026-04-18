@@ -57,7 +57,9 @@ e2e_type_insert() {
   tmux send-keys -t "$E2E_SESSION" "i"
   sleep 0.2
   tmux send-keys -t "$E2E_SESSION" "$text"
-  sleep 0.6
+  # Give nvim time to process InsertCharPre events and tmux time to flush
+  # the rendered pane — flaky on fast machines with shorter sleeps.
+  sleep 1.2
 }
 
 # Leave insert mode.

@@ -23,7 +23,7 @@ vim.opt.rtp:prepend("$E2E_PLUGIN_DIR")
 vim.cmd("runtime plugin/power-mode.lua")
 require("power-mode").setup({
   combo = {
-    timeout = 1000,
+    timeout = 1500,
     combo_box_disappear_seconds = 1,
     shake = false,
   },
