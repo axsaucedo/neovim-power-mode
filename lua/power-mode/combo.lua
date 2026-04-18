@@ -11,6 +11,7 @@ local state = {
   max_streak = 0,
   last_keystroke_time = 0,
   timeout_remaining = 0,
+  hidden = true,
 }
 
 -- Callback fired when combo resets (timeout or explicit)
@@ -26,6 +27,23 @@ local base_row = 1
 local base_col = 0
 local exclamation = ""
 local exclamation_timer = nil
+local hide_timer = nil
+
+local function cancel_hide_timer()
+  if hide_timer then
+    pcall(function() hide_timer:stop() hide_timer:close() end)
+    hide_timer = nil
+  end
+end
+
+--- Close the floating window but keep buffer + state intact so we can
+--- re-show the combo immediately on the next keystroke.
+local function close_window()
+  if win and vim.api.nvim_win_is_valid(win) then
+    pcall(vim.api.nvim_win_close, win, true)
+  end
+  win = nil
+end
 
 local function compute_level(streak)
   local cfg = config.get()
@@ -74,9 +92,13 @@ end
 
 --- Ensure combo floating window exists; re-create if destroyed externally.
 --- Preserves combo state (streak, level, max) — only re-creates the UI.
+--- No-op while the combo box is hidden (auto-hide after reset): the engine
+--- render loop and BufEnter autocmd both call into here, and we must not
+--- resurrect the window between combos.
 function M.ensure_window()
   local cfg = config.get()
   if not cfg.combo.enabled then return end
+  if state.hidden then return end
 
   local w = cfg.combo.width
   local h = cfg.combo.height
@@ -115,13 +137,19 @@ end
 
 function M.init()
   M.cleanup()
-  M.ensure_window()
-  M.render()
+  -- Start hidden — the window is created lazily on the first keystroke so
+  -- the combo box is only visible while a combo is actually active.
+  state.hidden = true
 end
 
 function M.increment()
   local cfg = config.get()
   if not cfg.combo.enabled then return end
+
+  -- A new keystroke always cancels any pending auto-hide and re-shows the
+  -- combo box immediately (even if the previous streak had just timed out).
+  cancel_hide_timer()
+  state.hidden = false
 
   M.ensure_window()
 
@@ -208,6 +236,26 @@ function M.reset()
       "Normal:PowerModeCombo0,NormalFloat:PowerModeCombo0,FloatBorder:PowerModeCombo0")
   end
 
+  -- Schedule auto-hide: after combo_box_disappear_seconds of no activity,
+  -- close the floating window entirely. A new keystroke cancels this timer
+  -- via increment(). Only schedule if not already hidden and no timer is
+  -- pending, so repeated reset() calls don't stack timers.
+  local cfg = config.get()
+  local linger_s = cfg.combo.combo_box_disappear_seconds or 0
+  if not state.hidden and not hide_timer then
+    if linger_s <= 0 then
+      state.hidden = true
+      close_window()
+    else
+      hide_timer = vim.loop.new_timer()
+      hide_timer:start(math.floor(linger_s * 1000), 0, vim.schedule_wrap(function()
+        cancel_hide_timer()
+        state.hidden = true
+        close_window()
+      end))
+    end
+  end
+
   -- Notify listeners (e.g., fire_wall cooldown)
   if on_reset_cb then
     pcall(on_reset_cb)
@@ -231,6 +279,7 @@ function M.update(dt)
 end
 
 function M.render()
+  if state.hidden then return end
   M.ensure_window()
   if not buf or not vim.api.nvim_buf_is_valid(buf) then return end
   local cfg = config.get()
@@ -292,6 +341,7 @@ function M.cleanup()
     pcall(function() exclamation_timer:stop() exclamation_timer:close() end)
     exclamation_timer = nil
   end
+  cancel_hide_timer()
   if win and vim.api.nvim_win_is_valid(win) then
     pcall(vim.api.nvim_win_close, win, true)
   end
@@ -304,7 +354,17 @@ function M.cleanup()
   state.level = 0
   state.max_streak = 0
   state.timeout_remaining = 0
+  state.hidden = true
   exclamation = ""
+end
+
+-- Internal accessor for tests: returns visibility state.
+function M._is_hidden()
+  return state.hidden
+end
+
+function M._has_pending_hide()
+  return hide_timer ~= nil
 end
 
 return M
