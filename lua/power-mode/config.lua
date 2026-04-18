@@ -48,6 +48,7 @@ local defaults = {
     width = 20,
     height = 7,
     timeout = 3000,
+    combo_box_disappear_seconds = 2,
     thresholds = { 10, 25, 50, 100, 200 },
     shake = true,
     shake_intensity = nil,
@@ -107,6 +108,7 @@ local function read_vim_globals()
     { "g:power_mode_combo_enabled", { "combo", "enabled" } },
     { "g:power_mode_combo_position", { "combo", "position" } },
     { "g:power_mode_combo_timeout", { "combo", "timeout" } },
+    { "g:power_mode_combo_box_disappear_seconds", { "combo", "combo_box_disappear_seconds" } },
     { "g:power_mode_shake_mode", { "shake", "mode" } },
     { "g:power_mode_shake_interval", { "shake", "interval" } },
     { "g:power_mode_shake_restore_delay", { "shake", "restore_delay" } },
@@ -186,6 +188,15 @@ local function validate(cfg)
   end
 
   local c = cfg.combo
+  if c.combo_box_disappear_seconds ~= nil then
+    local v = tonumber(c.combo_box_disappear_seconds)
+    if not v or v < 0 then
+      vim.notify("[power-mode] combo.combo_box_disappear_seconds must be a number >= 0", vim.log.levels.WARN)
+      c.combo_box_disappear_seconds = defaults.combo.combo_box_disappear_seconds
+    else
+      c.combo_box_disappear_seconds = v
+    end
+  end
   local valid_positions = {
     ["top-right"] = true, ["top-left"] = true,
     ["bottom-right"] = true, ["bottom-left"] = true,

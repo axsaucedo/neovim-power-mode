@@ -12,3 +12,8 @@ Thumbs.db
 
 # Session
 Session.vim
+
+# Scratch / ad-hoc verification harnesses (e.g. tmux E2E iteration).
+# Anything under tmp/ is intentionally NOT committed; stable tests live
+# under tests/e2e/.
+tmp/

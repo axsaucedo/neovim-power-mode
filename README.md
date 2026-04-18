@@ -206,6 +206,7 @@ require("power-mode").setup({
     width = 20,                         -- Window width
     height = 7,                         -- Window height
     timeout = 3000,                     -- ms before combo resets
+    combo_box_disappear_seconds = 2,    -- seconds the box lingers after reset before hiding
     thresholds = { 10, 25, 50, 100, 200 }, -- Level escalation thresholds
     shake = true,                       -- Shake combo window on keystroke
     shake_intensity = nil,              -- Override: { min, max } (nil = auto)
@@ -321,6 +322,18 @@ The combo counter tracks consecutive keystrokes:
 - **Exclamations** appear at milestones ("UNSTOPPABLE!", "GODLIKE!", etc.)
 - **Shake** jitters the combo window on each keystroke (intensity scales with level)
 - **Timeout bar** drains over 3 seconds; combo resets when empty
+- **Auto-hide** — the combo box is only visible while a combo is active. After
+  the streak resets (timeout or leaving insert mode), the box lingers for
+  `combo.combo_box_disappear_seconds` (default **2s**) and then disappears
+  entirely. A fresh keystroke immediately brings it back.
+
+  ```lua
+  require("power-mode").setup({
+    combo = {
+      combo_box_disappear_seconds = 2, -- seconds to linger after reset; 0 = hide instantly
+    },
+  })
+  ```
 
 ## 📳 Shake Modes
 
@@ -352,6 +365,7 @@ let g:power_mode_shake_mode = 'scroll'
 let g:power_mode_fire_wall_enabled = 1
 let g:power_mode_combo_enabled = 1
 let g:power_mode_combo_position = 'top-right'
+let g:power_mode_combo_box_disappear_seconds = 2
 let g:power_mode_engine_fps = 25
 let g:power_mode_color_1 = '#FF0000'
 ```
@@ -385,6 +399,24 @@ pm.toggle()
 pm.is_enabled()
 pm.status()
 ```
+
+## Testing
+
+Unit tests (headless Neovim):
+
+```bash
+nvim --headless -u tests/minimal_init.lua -c "luafile tests/test_combo.lua" -c "qa!"
+```
+
+End-to-end tests drive a real `nvim` inside a `tmux` session and assert on
+the captured pane content (Playwright-style). Requires `tmux` on `PATH`:
+
+```bash
+bash tests/e2e/test_combo_hide.sh
+```
+
+Shared helpers live in `tests/e2e/lib.sh` so new features can add their own
+`tests/e2e/test_*.sh` scripts without re-implementing the tmux plumbing.
 
 ## 📄 License
 
