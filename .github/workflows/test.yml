@@ -66,21 +66,9 @@ jobs:
         run: |
           PM_PERF_SMOKE=1 bash tests/perf/run.sh
 
-      - name: Validate JSON outputs (inline)
+      - name: Validate perf suite (schema + reproducibility + overhead)
         run: |
-          set -euo pipefail
-          SHA="$(git rev-parse --short HEAD)"
-          DIR="tests/perf/results/$SHA"
-          echo "[ci] checking outputs in $DIR"
-          for f in hotspots.json memory.json latency.json; do
-            test -s "$DIR/$f" || { echo "MISSING: $DIR/$f"; exit 1; }
-            nvim --headless -u tests/minimal_init.lua \
-              -c "lua local s=io.open('$DIR/$f'):read('*a'); local j=vim.json.decode(s); assert(j.schema_version==1, 'bad schema_version in $f')" \
-              -c "qall!"
-            echo "  ok $f"
-          done
-          test -s "tests/perf/results/$SHA.md" || { echo "MISSING summary md"; exit 1; }
-          echo "[ci] all perf outputs valid"
+          bash tests/perf/test_perf_suite.sh
 
       - name: Upload perf results
         if: always()
