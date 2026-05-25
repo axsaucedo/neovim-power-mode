@@ -33,3 +33,8 @@ tests/perf/results/*
 # the optimisations from REPORT.md are implemented and validated.
 # Posted as a PR comment via gh — intentionally NOT committed.
 /IMPROVEMENTS.md
+
+# Follow-up improvements report from the fire-wall / shake / renderer
+# residuals perf PR (companion to IMPROVEMENTS.md). Posted as a PR
+# comment via gh — intentionally NOT committed.
+/IMPROVEMENTS-2.md
