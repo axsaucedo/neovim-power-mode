@@ -89,6 +89,14 @@ function M.get_active()
   return current_module.get_active()
 end
 
+--- Cheap idle predicate used by the engine fast-path. True iff the
+--- current preset has no active particles.
+function M.is_idle()
+  if not current_module then return true end
+  local a = current_module.get_active()
+  return (not a) or (#a == 0)
+end
+
 function M.clear()
   if current_module then current_module.clear() end
 end

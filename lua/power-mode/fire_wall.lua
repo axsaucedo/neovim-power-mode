@@ -42,6 +42,17 @@ local heat_chars = {
   { threshold = 25,  char = "·" },
 }
 
+-- Module-level scratch tables reused every fire_wall.update tick to
+-- avoid per-frame allocations. `scratch_lines` holds the per-row
+-- concatenated strings handed to nvim_buf_set_lines; `scratch_row_chars`
+-- is rebuilt for every row and then concatenated. See REPORT.md R4 /
+-- IMPROVEMENTS.md O4. We nil-out from the tail for LuaJIT safety.
+local scratch_lines = {}
+local scratch_row_chars = {}
+local function clear_array(t)
+  for i = #t, 1, -1 do t[i] = nil end
+end
+
 -- Fire highlight groups with transparent (NONE) background
 -- winblend makes empty/cool cells see-through
 local fire_hl_groups = {
@@ -274,9 +285,11 @@ function M.update(_dt)
   if not fire_buf or not vim.api.nvim_buf_is_valid(fire_buf) then return end
 
   local start_y = grid_h - visible_rows + 1
-  local lines = {}
+  clear_array(scratch_lines)
+  local lines = scratch_lines
   for y = start_y, grid_h do
-    local row_chars = {}
+    clear_array(scratch_row_chars)
+    local row_chars = scratch_row_chars
     for x = 1, grid_w do
       row_chars[x] = heat_to_char(grid[y][x])
     end
@@ -329,6 +342,14 @@ end
 --- For engine compatibility (fire wall manages its own window, returns empty)
 function M.get_active()
   return {}
+end
+
+--- Cheap idle predicate used by the engine fast-path.
+--- Fire-wall has no work to do this tick iff no heat is being seeded
+--- AND no cooldown fade is in progress. When both are false the heat
+--- grid is empty and the floating window is hidden.
+function M.is_idle()
+  return (not is_active) and (not cooling_down)
 end
 
 function M.init()
