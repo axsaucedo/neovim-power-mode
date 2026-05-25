@@ -28,3 +28,8 @@ tests/perf/results/*
 # Top-level performance report produced by tests/perf/run.sh and posted
 # as a PR comment via gh — intentionally NOT committed.
 /REPORT.md
+
+# Top-level improvements report (companion to REPORT.md) produced when
+# the optimisations from REPORT.md are implemented and validated.
+# Posted as a PR comment via gh — intentionally NOT committed.
+/IMPROVEMENTS.md
