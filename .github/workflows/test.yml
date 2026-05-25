@@ -40,3 +40,52 @@ jobs:
       - name: Run fire wall tests
         run: |
           nvim --headless -u tests/minimal_init.lua -c "luafile tests/test_fire_wall.lua" -c "qall!"
+
+  perf-smoke:
+    # Non-asserting smoke run of the perf evaluation suite. Verifies that
+    # every bench under tests/perf/ executes cleanly and produces valid
+    # schema_version=1 JSON. Does NOT assert on absolute timings — those
+    # vary too much between GitHub-hosted runners and developer machines.
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        neovim: ['v0.9.5', 'v0.10.0', 'nightly']
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Neovim
+        uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: ${{ matrix.neovim }}
+
+      - name: Install tmux
+        run: sudo apt-get update && sudo apt-get install -y tmux
+
+      - name: Run perf suite (smoke)
+        run: |
+          PM_PERF_SMOKE=1 bash tests/perf/run.sh
+
+      - name: Validate JSON outputs (inline)
+        run: |
+          set -euo pipefail
+          SHA="$(git rev-parse --short HEAD)"
+          DIR="tests/perf/results/$SHA"
+          echo "[ci] checking outputs in $DIR"
+          for f in hotspots.json memory.json latency.json; do
+            test -s "$DIR/$f" || { echo "MISSING: $DIR/$f"; exit 1; }
+            nvim --headless -u tests/minimal_init.lua \
+              -c "lua local s=io.open('$DIR/$f'):read('*a'); local j=vim.json.decode(s); assert(j.schema_version==1, 'bad schema_version in $f')" \
+              -c "qall!"
+            echo "  ok $f"
+          done
+          test -s "tests/perf/results/$SHA.md" || { echo "MISSING summary md"; exit 1; }
+          echo "[ci] all perf outputs valid"
+
+      - name: Upload perf results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-results-${{ matrix.neovim }}
+          path: tests/perf/results/
+          if-no-files-found: warn
