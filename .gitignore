@@ -17,3 +17,14 @@ Session.vim
 # Anything under tmp/ is intentionally NOT committed; stable tests live
 # under tests/e2e/.
 tmp/
+
+# Perf evaluation suite outputs. The suite and its docs are tracked;
+# the per-run results (JSON + Markdown) under tests/perf/results/ are
+# regenerated per machine / SHA and must not be committed. .gitkeep
+# preserves the directory.
+tests/perf/results/*
+!tests/perf/results/.gitkeep
+
+# Top-level performance report produced by tests/perf/run.sh and posted
+# as a PR comment via gh — intentionally NOT committed.
+/REPORT.md
