@@ -54,5 +54,6 @@ function M.update(dt)
 end
 
 function M.get_active() return active end
+function M.is_idle() return #active == 0 end
 function M.clear() active = {} end
 return M

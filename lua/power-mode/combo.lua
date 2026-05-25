@@ -316,6 +316,13 @@ function M.get_level()
   return state.level
 end
 
+--- Cheap idle predicate used by the engine fast-path.
+--- Combo has no work to do this tick iff the window is hidden AND
+--- there is no timeout remaining to count down.
+function M.is_idle()
+  return state.hidden and state.timeout_remaining <= 0
+end
+
 function M.get_streak()
   return state.current_streak
 end

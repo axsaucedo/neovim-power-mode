@@ -331,6 +331,14 @@ function M.get_active()
   return {}
 end
 
+--- Cheap idle predicate used by the engine fast-path.
+--- Fire-wall has no work to do this tick iff no heat is being seeded
+--- AND no cooldown fade is in progress. When both are false the heat
+--- grid is empty and the floating window is hidden.
+function M.is_idle()
+  return (not is_active) and (not cooling_down)
+end
+
 function M.init()
   create_fire_highlights()
 end

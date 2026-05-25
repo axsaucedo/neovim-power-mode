@@ -35,6 +35,18 @@ function M.start()
     last_time = now
 
     vim.schedule(function()
+      -- Idle fast-path: when every subsystem reports nothing to do this
+      -- tick we skip all .update() calls, the merge loop and the
+      -- renderer.render() call. This keeps wakeups cheap when the user
+      -- is not typing — measurements showed idle CPU sitting at ~4 % on
+      -- a 25 fps tick because the body always ran. See REPORT.md R3 /
+      -- IMPROVEMENTS.md O2.
+      local p_idle = (not particles_mod) or particles_mod.is_idle()
+      local f_idle = (not fire_mod) or fire_mod.is_idle()
+      local fw_idle = (not fire_wall_mod) or fire_wall_mod.is_idle()
+      local c_idle = (not combo_mod) or combo_mod.is_idle()
+      if p_idle and f_idle and fw_idle and c_idle then return end
+
       if particles_mod then particles_mod.update(dt) end
       if fire_mod then fire_mod.update(dt) end
       if fire_wall_mod then fire_wall_mod.update(dt) end
