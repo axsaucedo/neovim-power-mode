@@ -5,24 +5,41 @@ local utils = require("power-mode.utils")
 
 local M = {}
 
+-- F6: single module-scope uv_timer reused across every scroll-shake
+-- event. Previously we allocated a new uv handle per shake event and
+-- closed it from the restore callback — at interval=1 under heavy
+-- typing that's 60+ open/close pairs per second of uv handle churn.
+-- Now we keep one handle for the lifetime of the plugin; `cleanup()`
+-- closes it when power-mode is disabled. We also coalesce overlapping
+-- shakes: while a restore is already pending, drop the new shake
+-- (prevents the visible "wobble" that compounding shakes produce and
+-- removes start/stop churn under storm typing).
 local shake_timer = nil
+local shake_restore_topline = nil  -- topline to restore to (set on shake start)
+local shake_pending = false        -- true while a restore is armed
 local keystroke_count = 0
 
 function M.trigger(level)
   local cfg = config.get()
-  if cfg.shake.mode == "none" then return end
+  local mode = cfg.shake.mode
+  if mode == "none" then return end
 
   keystroke_count = keystroke_count + 1
   if keystroke_count % cfg.shake.interval ~= 0 then return end
 
-  if cfg.shake.mode == "scroll" then
+  if mode == "scroll" then
     M._scroll_shake(level, cfg)
-  elseif cfg.shake.mode == "applescript" then
+  elseif mode == "applescript" then
     M._applescript_shake(level, cfg)
   end
 end
 
 function M._scroll_shake(_level, cfg)
+  -- Coalesce: while a previous shake's restore is still pending, drop
+  -- this event rather than restart the timer (would extend the visible
+  -- displacement window indefinitely under storm typing).
+  if shake_pending then return end
+
   local magnitude = cfg.shake.magnitude or 1
 
   -- Only manipulate topline — never touch cursor position
@@ -36,7 +53,9 @@ function M._scroll_shake(_level, cfg)
   -- Pick direction: shift topline up or down
   local dir = math.random() > 0.5 and magnitude or -magnitude
   local new_top = current_topline + dir
-  new_top = math.max(1, math.min(new_top, total_lines - win_height + 1))
+  if new_top < 1 then new_top = 1 end
+  local max_top = total_lines - win_height + 1
+  if new_top > max_top then new_top = max_top end
 
   -- Only shake if the shift actually moves the viewport
   if new_top == current_topline then return end
@@ -44,17 +63,19 @@ function M._scroll_shake(_level, cfg)
   -- Shift viewport only (no cursor manipulation)
   pcall(vim.fn.winrestview, { topline = new_top })
 
-  -- Cancel any previous pending restore
-  if shake_timer then
-    pcall(function() shake_timer:stop() shake_timer:close() end)
+  -- Lazily allocate the shared timer on first use.
+  if not shake_timer then
+    shake_timer = vim.loop.new_timer()
   end
-  shake_timer = vim.loop.new_timer()
+
+  shake_restore_topline = current_topline
+  shake_pending = true
   shake_timer:start(cfg.shake.restore_delay, 0, vim.schedule_wrap(function()
-    -- Restore only topline — cursor stays exactly where user left it
-    pcall(vim.fn.winrestview, { topline = current_topline })
-    if shake_timer then
-      pcall(function() shake_timer:stop() shake_timer:close() end)
-      shake_timer = nil
+    local restore_to = shake_restore_topline
+    shake_pending = false
+    shake_restore_topline = nil
+    if restore_to then
+      pcall(vim.fn.winrestview, { topline = restore_to })
     end
   end))
 end
@@ -87,6 +108,8 @@ function M.cleanup()
     pcall(function() shake_timer:stop() shake_timer:close() end)
     shake_timer = nil
   end
+  shake_pending = false
+  shake_restore_topline = nil
   keystroke_count = 0
 end
 
