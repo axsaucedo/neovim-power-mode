@@ -6,6 +6,23 @@ local M = {}
 
 local pool = {}
 
+-- F8: cache strdisplaywidth(char) per unique particle char. The particle
+-- alphabet across all presets is small and bounded (~30 chars), so the
+-- cache fills within the first frame of activity and is pure table
+-- lookup thereafter. strdisplaywidth is a vimscript bridge call that
+-- accounted for ~0.25 ms p50 in the latency micro-bench; skipping the
+-- bridge on cache hits is essentially free per-particle.
+local char_width_cache = {}
+local function get_char_width(ch)
+  local w = char_width_cache[ch]
+  if w == nil then
+    w = vim.fn.strdisplaywidth(ch)
+    if w < 1 then w = 1 end
+    char_width_cache[ch] = w
+  end
+  return w
+end
+
 function M.init()
   M.cleanup()
   local cfg = config.get()
@@ -26,7 +43,12 @@ function M.init()
       zindex = 50,
     })
     if ok then
-      pool[i] = { buf = buf, win = win, in_use = false }
+      -- F8: `was_in_use` tracks last-frame state so the offscreen-hide
+      -- loop only emits nvim_win_set_config for slots that were in use
+      -- last frame but aren't this frame. Pool size is 100 by default
+      -- and steady-state usage is ~10 slots; this avoids ~90 redundant
+      -- config writes per frame.
+      pool[i] = { buf = buf, win = win, in_use = false, was_in_use = false }
     end
   end
 end
@@ -35,8 +57,9 @@ function M.render(particles)
   local cfg = config.get()
   local avoid = cfg.particles.avoid_cursor
 
-  -- Mark all as unused
+  -- Mark all as unused (preserving the previous-frame state in was_in_use)
   for _, entry in ipairs(pool) do
+    entry.was_in_use = entry.in_use
     entry.in_use = false
   end
 
@@ -88,8 +111,7 @@ function M.render(particles)
     end
 
     pcall(vim.api.nvim_buf_set_lines, entry.buf, 0, -1, false, { p.char })
-    local char_width = vim.fn.strdisplaywidth(p.char)
-    if char_width < 1 then char_width = 1 end
+    local char_width = get_char_width(p.char)
     pcall(vim.api.nvim_win_set_config, entry.win, {
       relative = "editor",
       row = py,
@@ -108,9 +130,11 @@ function M.render(particles)
     ::continue::
   end
 
-  -- Hide unused windows offscreen
+  -- Hide windows that *were* visible last frame but aren't this frame.
+  -- Slots that have been parked offscreen since at least last frame
+  -- already have row=-10,col=-10 and don't need to be touched again.
   for _, entry in ipairs(pool) do
-    if not entry.in_use and vim.api.nvim_win_is_valid(entry.win) then
+    if entry.was_in_use and not entry.in_use and vim.api.nvim_win_is_valid(entry.win) then
       pcall(vim.api.nvim_win_set_config, entry.win, {
         relative = "editor",
         row = -10,

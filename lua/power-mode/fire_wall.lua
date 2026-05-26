@@ -63,6 +63,52 @@ local fire_hl_groups = {
   { name = "PowerModeFire5", threshold = 25,  fg = "#884400", ctermfg = 94  },  -- dim ember
 }
 
+-- Precomputed heat-value lookup tables (REPORT R1 / F3). Replaces the
+-- per-cell linear walks of heat_chars / fire_hl_groups (5 entries each)
+-- that used to run *three times per cell per frame* (row builder twice
+-- + highlight loop). Built once at module load against the heat_chars
+-- and fire_hl_groups thresholds defined above.
+local heat_char_lut = {}      -- [0..255] -> single-cell string
+local heat_hl_lut = {}        -- [0..255] -> highlight group name
+local heat_charlen_lut = {}   -- [0..255] -> #char in bytes
+-- "Live" threshold mirrors grid_has_heat() (heat > 5). live_lut[h] is
+-- 1 when the cell is considered live, 0 otherwise. Used by the F4
+-- incremental live_cells counter without an extra branch per write.
+local heat_live_lut = {}      -- [0..255] -> 0 or 1
+
+local function build_heat_luts()
+  for h = 0, 255 do
+    local ch = " "
+    for _, entry in ipairs(heat_chars) do
+      if h >= entry.threshold then ch = entry.char; break end
+    end
+    local hl = "PowerModeFireBg"
+    for _, g in ipairs(fire_hl_groups) do
+      if h >= g.threshold then hl = g.name; break end
+    end
+    heat_char_lut[h] = ch
+    heat_hl_lut[h] = hl
+    heat_charlen_lut[h] = #ch
+    heat_live_lut[h] = (h > 5) and 1 or 0
+  end
+end
+build_heat_luts()
+
+-- F4: live-cell counter. Number of grid cells with heat > 5. Updated
+-- incrementally on every write into `grid` (seed, propagate, bottom-
+-- cool). Replaces the O(w·h) grid_has_heat() scan with an O(1) check
+-- in the cooldown branch, and lets us assert "no live heat ⇒ nothing
+-- to render" without touching the grid.
+local live_cells = 0
+
+-- Scratch list of highlight runs collected during the render walk and
+-- consumed *after* nvim_buf_set_lines (extmarks must reference lines
+-- that already exist in the buffer). Flat layout to keep allocation
+-- cost at zero: index i ∈ {0,4,8,...} stores row, start_col, end_col,
+-- hl_group for one run. F2 RLE batching.
+local scratch_runs = {}
+local scratch_run_count = 0
+
 -- Fire parameters (fire_columns-based, the best-performing mode)
 local fire_params = {
   base_heat = 200,
@@ -104,20 +150,22 @@ local function ensure_grid(w, h)
       grid[y][x] = 0
     end
   end
+  -- Fresh grid is all zeros ⇒ no live cells.
+  live_cells = 0
 end
 
+-- F3: thin wrappers kept for any external callers / tests. The hot
+-- update loop indexes the LUTs directly.
 local function heat_to_char(heat)
-  for _, entry in ipairs(heat_chars) do
-    if heat >= entry.threshold then return entry.char end
-  end
-  return " "
+  if heat < 0 then return heat_char_lut[0] end
+  if heat > 255 then return heat_char_lut[255] end
+  return heat_char_lut[heat]
 end
 
 local function heat_to_hl(heat)
-  for _, hl in ipairs(fire_hl_groups) do
-    if heat >= hl.threshold then return hl.name end
-  end
-  return "PowerModeFireBg"
+  if heat < 0 then return heat_hl_lut[0] end
+  if heat > 255 then return heat_hl_lut[255] end
+  return heat_hl_lut[heat]
 end
 
 --- Compute how many rows of fire should be visible based on combo level
@@ -196,26 +244,29 @@ local function seed_bottom_row()
 
   local level = math.min(current_combo_level or 0, 4)
   local max_heat = math.min(255, fire_params.base_heat + level * fire_params.heat_per_level)
+  local hot_lo = math.floor(max_heat * 0.7)
+  local cold_hi = math.floor(max_heat * 0.15)
 
+  local row = grid[grid_h]
+  local lc = live_cells
+  local llut = heat_live_lut
   for x = 1, grid_w do
+    local new_h
     if math.random() < fire_params.seed_density then
-      grid[grid_h][x] = utils.random_int(math.floor(max_heat * 0.7), max_heat)
+      new_h = utils.random_int(hot_lo, max_heat)
     else
-      grid[grid_h][x] = utils.random_int(0, math.floor(max_heat * 0.15))
+      new_h = utils.random_int(0, cold_hi)
     end
+    lc = lc + llut[new_h] - llut[row[x]]
+    row[x] = new_h
   end
+  live_cells = lc
 end
 
---- Check if the grid has any heat remaining
+--- Check if the grid has any heat remaining. O(1) — backed by the F4
+--- live_cells counter (heat > 5 mirrors the original predicate).
 local function grid_has_heat()
-  for y = 1, grid_h do
-    for x = 1, grid_w do
-      if grid[y] and grid[y][x] and grid[y][x] > 5 then
-        return true
-      end
-    end
-  end
-  return false
+  return live_cells > 0
 end
 
 --- Propagate heat upward and render to the floating window
@@ -262,24 +313,40 @@ function M.update(_dt)
     seed_bottom_row()
   end
 
-  -- Propagate: each cell = average of 3 cells below - random cooling
+  -- Propagate: each cell = average of 3 cells below - random cooling.
+  -- F4: incrementally update live_cells as cells cross the > 5 threshold
+  -- so the cooldown branch above stays O(1).
+  local llut = heat_live_lut
+  local lc = live_cells
+  local cooling = fire_params.cooling
   for y = 1, grid_h - 1 do
+    local row_dst = grid[y]
+    local row_src = grid[y + 1]
     for x = 1, grid_w do
-      local below = grid[y + 1][x]
-      local left = grid[y + 1][math.max(1, x - 1)]
-      local right = grid[y + 1][math.min(grid_w, x + 1)]
+      local below = row_src[x]
+      local left = row_src[x > 1 and (x - 1) or 1]
+      local right = row_src[x < grid_w and (x + 1) or grid_w]
       local avg = (below + left + right) / 3
-      local cool = utils.random_int(0, fire_params.cooling)
-      grid[y][x] = math.max(0, math.floor(avg - cool))
+      local cool = utils.random_int(0, cooling)
+      local new_h = math.max(0, math.floor(avg - cool))
+      lc = lc + llut[new_h] - llut[row_dst[x]]
+      row_dst[x] = new_h
     end
   end
 
   -- Cool the bottom row (faster during cooldown for visible fade)
   local cool_factor = cooling_down and 1.5 or 0.3
+  local bottom_cool_max = math.floor(cooling * cool_factor)
+  local bottom_row = grid[grid_h]
   for x = 1, grid_w do
-    local cool = utils.random_int(0, math.floor(fire_params.cooling * cool_factor))
-    grid[grid_h][x] = math.max(0, grid[grid_h][x] - cool)
+    local cool = utils.random_int(0, bottom_cool_max)
+    local was = bottom_row[x]
+    local new_h = was - cool
+    if new_h < 0 then new_h = 0 end
+    lc = lc + llut[new_h] - llut[was]
+    bottom_row[x] = new_h
   end
+  live_cells = lc
 
   -- Render only the bottom `visible_rows` of the heat grid to the buffer
   if not fire_buf or not vim.api.nvim_buf_is_valid(fire_buf) then return end
@@ -287,31 +354,70 @@ function M.update(_dt)
   local start_y = grid_h - visible_rows + 1
   clear_array(scratch_lines)
   local lines = scratch_lines
-  for y = start_y, grid_h do
+
+  -- F2 + F3: single pass per row produces both the concatenated row
+  -- string AND the per-row RLE'd highlight runs. Runs are accumulated
+  -- into scratch_runs (flat 4-tuple layout: row,start,end,hl) and
+  -- emitted as nvim_buf_set_extmark calls *after* nvim_buf_set_lines
+  -- so the buffer rows already exist by the time extmarks reference
+  -- them. All per-cell lookups go through the LUTs (no linear walks).
+  local runs = scratch_runs
+  local rc = 0
+  local clut = heat_char_lut
+  local hlut = heat_hl_lut
+  local llut_byte = heat_charlen_lut
+  for i = 1, visible_rows do
+    local y = start_y + i - 1
+    local row = grid[y]
     clear_array(scratch_row_chars)
     local row_chars = scratch_row_chars
+    local col_byte = 0
+    local run_hl = nil
+    local run_start = 0
+    local row_idx = i - 1
     for x = 1, grid_w do
-      row_chars[x] = heat_to_char(grid[y][x])
+      local h = row[x]
+      if h < 0 then h = 0 elseif h > 255 then h = 255 end
+      local hl = hlut[h]
+      row_chars[x] = clut[h]
+      if hl ~= run_hl then
+        if run_hl ~= nil and col_byte > run_start then
+          runs[rc + 1] = row_idx
+          runs[rc + 2] = run_start
+          runs[rc + 3] = col_byte
+          runs[rc + 4] = run_hl
+          rc = rc + 4
+        end
+        run_hl = hl
+        run_start = col_byte
+      end
+      col_byte = col_byte + llut_byte[h]
     end
-    lines[#lines + 1] = table.concat(row_chars)
+    if run_hl ~= nil and col_byte > run_start then
+      runs[rc + 1] = row_idx
+      runs[rc + 2] = run_start
+      runs[rc + 3] = col_byte
+      runs[rc + 4] = run_hl
+      rc = rc + 4
+    end
+    lines[i] = table.concat(row_chars)
   end
 
   pcall(vim.api.nvim_buf_set_lines, fire_buf, 0, -1, false, lines)
 
-  -- Apply per-cell highlights
   vim.api.nvim_buf_clear_namespace(fire_buf, fire_ns, 0, -1)
-  for i = 1, visible_rows do
-    local y = start_y + i - 1
-    local col_byte = 0
-    for x = 1, grid_w do
-      local heat = grid[y][x]
-      local hl = heat_to_hl(heat)
-      local ch = heat_to_char(heat)
-      local ch_len = #ch
-      pcall(vim.api.nvim_buf_add_highlight, fire_buf, fire_ns, hl, i - 1, col_byte, col_byte + ch_len)
-      col_byte = col_byte + ch_len
-    end
+  local set_extmark = vim.api.nvim_buf_set_extmark
+  for j = 1, rc, 4 do
+    pcall(set_extmark, fire_buf, fire_ns, runs[j], runs[j + 1], {
+      end_row = runs[j],
+      end_col = runs[j + 2],
+      hl_group = runs[j + 3],
+    })
   end
+  -- Nil out the run scratch tail to keep references from leaking past
+  -- the last live entry (matches the clear_array discipline elsewhere).
+  for j = rc + 1, scratch_run_count do runs[j] = nil end
+  scratch_run_count = rc
 end
 
 function M._hide_window()
@@ -364,6 +470,7 @@ function M.clear()
   grid = {}
   grid_w = 0
   grid_h = 0
+  live_cells = 0
 
   if fire_win and vim.api.nvim_win_is_valid(fire_win) then
     pcall(vim.api.nvim_win_close, fire_win, true)
