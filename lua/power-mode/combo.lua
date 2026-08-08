@@ -274,7 +274,7 @@ end
 
 function M.update(dt)
   local cfg = config.get()
-  if not cfg.combo.enabled then return end
+  if not cfg.combo.enabled then return true end
 
   if state.timeout_remaining > 0 then
     state.timeout_remaining = state.timeout_remaining - dt * 1000
@@ -284,6 +284,7 @@ function M.update(dt)
     end
   end
   M.render()
+  return state.timeout_remaining <= 0
 end
 
 function M.render()
@@ -353,10 +354,29 @@ function M.get_level()
 end
 
 --- Cheap idle predicate used by the engine fast-path.
---- Combo has no work to do this tick iff the window is hidden AND
---- there is no timeout remaining to count down.
+--- The linger window is closed by its own timer, so only the timeout bar
+--- needs engine updates.
 function M.is_idle()
-  return state.hidden and state.timeout_remaining <= 0
+  return state.timeout_remaining <= 0
+end
+
+--- Milliseconds until the timeout bar can visibly change again.
+--- @param min_delay number Configured engine frame interval
+function M.next_update_delay(min_delay)
+  if state.timeout_remaining <= 0 then return nil end
+  local cfg = config.get()
+  local bar_width = cfg.combo.width - 4
+  if cfg.combo.timeout <= 0 or bar_width <= 0 then return min_delay end
+
+  local ratio = utils.clamp(state.timeout_remaining / cfg.combo.timeout, 0, 1)
+  local filled = math.floor(ratio * bar_width)
+  if filled <= 0 then
+    return math.max(min_delay, math.ceil(state.timeout_remaining))
+  end
+
+  local boundary = filled * cfg.combo.timeout / bar_width
+  local delay = math.ceil(state.timeout_remaining - boundary + 1)
+  return math.max(min_delay, delay)
 end
 
 function M.get_streak()

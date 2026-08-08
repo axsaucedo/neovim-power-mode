@@ -6,6 +6,10 @@ local M = {}
 
 local timer = nil
 local last_time = nil
+local timer_generation = 0
+local frame_interval = nil
+local current_delay = nil
+local tick_callback = nil
 
 -- Modules injected at runtime to avoid circular requires
 local particles_mod = nil
@@ -42,14 +46,21 @@ function M.start()
   local cfg = config.get()
   local interval = math.floor(1000 / cfg.engine.fps)
 
+  frame_interval = interval
+  current_delay = interval
   last_time = vim.loop.now()
   timer = vim.loop.new_timer()
-  timer:start(0, interval, function()
+  timer_generation = timer_generation + 1
+  local generation = timer_generation
+
+  local function tick()
     local now = vim.loop.now()
     local dt = (now - last_time) / 1000
     last_time = now
 
     vim.schedule(function()
+      if generation ~= timer_generation or not timer then return end
+
       -- Idle fast-path: when every subsystem reports nothing to do this
       -- tick we skip all .update() calls, the merge loop and the
       -- renderer.render() call. This keeps wakeups cheap when the user
@@ -60,7 +71,10 @@ function M.start()
       local f_idle = (not fire_mod) or fire_mod.is_idle()
       local fw_idle = (not fire_wall_mod) or fire_wall_mod.is_idle()
       local c_idle = (not combo_mod) or combo_mod.is_idle()
-      if p_idle and f_idle and fw_idle and c_idle then return end
+      if p_idle and f_idle and fw_idle and c_idle then
+        M.stop()
+        return
+      end
 
       if particles_mod then particles_mod.update(dt) end
       if fire_mod then fire_mod.update(dt) end
@@ -80,12 +94,53 @@ function M.start()
       end
 
       if renderer_mod then renderer_mod.render(all) end
-      if combo_mod then combo_mod.update(dt) end
+      if combo_mod then c_idle = combo_mod.update(dt) end
+
+      local particle_effects_idle = #all == 0
+      if not fw_idle then fw_idle = fire_wall_mod.is_idle() end
+      if particle_effects_idle and fw_idle and c_idle then
+        M.stop()
+        return
+      end
+
+      -- E3: keep the configured full rate for visible animation. When only
+      -- the quantized combo timeout bar remains, re-arm at its next visible
+      -- change instead of waking for identical frames. See Phase 2 energy
+      -- measurements in report-energy-phase2.md.
+      local delay = interval
+      if particle_effects_idle and fw_idle and not c_idle
+        and combo_mod and combo_mod.next_update_delay then
+        delay = combo_mod.next_update_delay(interval) or interval
+      end
+      if generation == timer_generation and timer and delay ~= current_delay then
+        local ok = pcall(function()
+          timer:set_repeat(delay)
+          timer:again()
+        end)
+        if ok then current_delay = delay end
+      end
     end)
-  end)
+  end
+
+  tick_callback = tick
+  timer:start(0, interval, tick)
+end
+
+--- Restore full cadence after input while leaving an already full-rate timer alone.
+function M.wake()
+  if not timer then
+    M.start()
+    return
+  end
+  if not current_delay or not frame_interval or current_delay <= frame_interval then return end
+
+  current_delay = frame_interval
+  last_time = vim.loop.now()
+  timer:start(0, frame_interval, tick_callback)
 end
 
 function M.stop()
+  timer_generation = timer_generation + 1
   if timer then
     pcall(function()
       timer:stop()
@@ -94,6 +149,9 @@ function M.stop()
     timer = nil
   end
   last_time = nil
+  frame_interval = nil
+  current_delay = nil
+  tick_callback = nil
 end
 
 function M.is_running()

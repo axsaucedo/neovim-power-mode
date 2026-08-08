@@ -143,6 +143,10 @@ combo.update(0)
 assert_eq(set_lines_calls, before_recovery_render + 1, "re-created combo window forces payload render")
 assert_eq(vim.api.nvim_win_is_valid(combo._get_window()), true, "combo window recovers after external close")
 
+combo.increment()
+combo.update(0.04)
+assert_eq(combo.next_update_delay(40) > 40, true, "combo-only cadence waits for next visible bar step")
+
 vim.api.nvim_buf_set_lines = original_set_lines
 combo.cleanup()
 config.resolve({})
