@@ -15,6 +15,7 @@ local power_mode = require("power-mode")
 local combo = require("power-mode.combo")
 local fire_wall = require("power-mode.fire_wall")
 local renderer = require("power-mode.renderer")
+local shake = require("power-mode.shake")
 
 power_mode.disable()
 
@@ -87,6 +88,57 @@ vim.wait(1000, function()
 end)
 assert_eq(#vim.api.nvim_list_wins(), windows_before, "final disable restores window count")
 assert_eq(#vim.api.nvim_list_bufs(), buffers_before, "final disable restores buffer count")
+
+-- Test 3: disable restores UI options and warns if guarded teardown fails.
+power_mode.enable()
+original_eventignore = vim.o.eventignore
+original_lazyredraw = vim.o.lazyredraw
+vim.o.eventignore = "CursorHold"
+vim.o.lazyredraw = false
+local original_shake_cleanup = shake.cleanup
+local original_notify = vim.notify
+local disable_warning = nil
+shake.cleanup = function() error("forced disable cleanup failure") end
+vim.notify = function(message, level)
+  if level == vim.log.levels.WARN then disable_warning = message end
+end
+
+power_mode.disable()
+
+shake.cleanup = original_shake_cleanup
+vim.notify = original_notify
+assert_eq(vim.o.eventignore, "CursorHold", "failed disable restores eventignore")
+assert_eq(vim.o.lazyredraw, false, "failed disable restores lazyredraw")
+assert_eq(disable_warning and disable_warning:match("^%[power%-mode%]") ~= nil, true,
+  "failed disable emits prefixed warning")
+vim.wait(1000, function()
+  return resources_restored(windows_before, buffers_before)
+end)
+vim.o.eventignore = original_eventignore
+vim.o.lazyredraw = original_lazyredraw
+
+-- Test 4: renderer cleanup guard restores options and warns on failure.
+original_eventignore = vim.o.eventignore
+original_lazyredraw = vim.o.lazyredraw
+vim.o.eventignore = "CursorHold"
+vim.o.lazyredraw = false
+local renderer_warning = nil
+vim.notify = function(message, level)
+  if level == vim.log.levels.WARN then renderer_warning = message end
+end
+
+local renderer_ok = renderer._with_ui_suppressed(function()
+  error("forced renderer cleanup failure")
+end)
+
+vim.notify = original_notify
+assert_eq(renderer_ok, false, "renderer guard reports failure")
+assert_eq(vim.o.eventignore, "CursorHold", "failed renderer cleanup restores eventignore")
+assert_eq(vim.o.lazyredraw, false, "failed renderer cleanup restores lazyredraw")
+assert_eq(renderer_warning and renderer_warning:match("^%[power%-mode%]") ~= nil, true,
+  "failed renderer cleanup emits prefixed warning")
+vim.o.eventignore = original_eventignore
+vim.o.lazyredraw = original_lazyredraw
 
 print(string.format("\nRenderer tests: %d passed, %d failed", pass, fail))
 if fail > 0 then vim.cmd("cquit! 1") end

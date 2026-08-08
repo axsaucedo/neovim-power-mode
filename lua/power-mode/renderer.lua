@@ -7,6 +7,24 @@ local M = {}
 local pool = {}
 local cleanup_batch_size = 20
 
+local function with_ui_suppressed(fn)
+  local eventignore = vim.o.eventignore
+  local lazyredraw = vim.o.lazyredraw
+  vim.o.eventignore = "all"
+  vim.o.lazyredraw = true
+
+  local ok, err = pcall(fn)
+
+  vim.o.eventignore = eventignore
+  vim.o.lazyredraw = lazyredraw
+  if not ok then
+    vim.notify("[power-mode] renderer cleanup failed: " .. tostring(err), vim.log.levels.WARN)
+  end
+  return ok
+end
+
+M._with_ui_suppressed = with_ui_suppressed
+
 -- F8: cache strdisplaywidth(char) per unique particle char. The particle
 -- alphabet across all presets is small and bounded (~30 chars), so the
 -- cache fills within the first frame of activity and is pure table
@@ -55,23 +73,17 @@ function M.init()
 end
 
 local function cleanup_entries(entries, first, last)
-  local eventignore = vim.o.eventignore
-  local lazyredraw = vim.o.lazyredraw
-  vim.o.eventignore = "all"
-  vim.o.lazyredraw = true
-
-  for i = first, last do
-    local entry = entries[i]
-    if entry.buf and vim.api.nvim_buf_is_valid(entry.buf) then
-      pcall(vim.api.nvim_buf_delete, entry.buf, { force = true })
+  with_ui_suppressed(function()
+    for i = first, last do
+      local entry = entries[i]
+      if entry.buf and vim.api.nvim_buf_is_valid(entry.buf) then
+        pcall(vim.api.nvim_buf_delete, entry.buf, { force = true })
+      end
+      if entry.win and vim.api.nvim_win_is_valid(entry.win) then
+        pcall(vim.api.nvim_win_close, entry.win, true)
+      end
     end
-    if entry.win and vim.api.nvim_win_is_valid(entry.win) then
-      pcall(vim.api.nvim_win_close, entry.win, true)
-    end
-  end
-
-  vim.o.eventignore = eventignore
-  vim.o.lazyredraw = lazyredraw
+  end)
 end
 
 local function cleanup_deferred(entries, first)

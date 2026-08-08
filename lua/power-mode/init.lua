@@ -18,6 +18,22 @@ local augroup = nil
 local stop_timer = nil
 local on_key_ns = nil
 
+local function with_ui_suppressed(fn)
+  local eventignore = vim.o.eventignore
+  local lazyredraw = vim.o.lazyredraw
+  vim.o.eventignore = "all"
+  vim.o.lazyredraw = true
+
+  local ok, err = pcall(fn)
+
+  vim.o.eventignore = eventignore
+  vim.o.lazyredraw = lazyredraw
+  if not ok then
+    vim.notify("[power-mode] disable teardown failed: " .. tostring(err), vim.log.levels.WARN)
+  end
+  return ok
+end
+
 local function get_cursor_pos()
   local cursor = vim.api.nvim_win_get_cursor(0)
   local pos = vim.fn.screenpos(vim.fn.win_getid(), cursor[1], cursor[2] + 1)
@@ -195,16 +211,12 @@ function M.disable()
 
   -- F9: suppress redraw and third-party autocmd cascades while deleting the
   -- floating UI. See the 2026-08-08 disable latency benchmark.
-  local eventignore = vim.o.eventignore
-  local lazyredraw = vim.o.lazyredraw
-  vim.o.eventignore = "all"
-  vim.o.lazyredraw = true
-  fire_wall.clear()
-  renderer.cleanup(true)
-  combo.cleanup()
-  shake.cleanup()
-  vim.o.eventignore = eventignore
-  vim.o.lazyredraw = lazyredraw
+  with_ui_suppressed(function()
+    fire_wall.clear()
+    renderer.cleanup(true)
+    combo.cleanup()
+    shake.cleanup()
+  end)
 
   vim.notify("Power Mode disabled", vim.log.levels.INFO)
 end
