@@ -24,6 +24,15 @@ local function resources_restored(windows, buffers)
     and #vim.api.nvim_list_bufs() == buffers
 end
 
+local function config_coord(value)
+  if type(value) == "number" then return value end
+  if type(value) ~= "table" then return nil end
+  -- Neovim 0.9 represents API floats as {[false] = value, [true] = exponent}.
+  if type(value[false]) == "number" then return value[false] end
+  if type(value[1]) == "number" then return value[1] end
+  return nil
+end
+
 -- Test 1: disable removes every plugin-created window and buffer.
 local windows_before = #vim.api.nvim_list_wins()
 local buffers_before = #vim.api.nvim_list_bufs()
@@ -35,9 +44,17 @@ power_mode.setup({
   fire_wall = { enabled = true },
 })
 power_mode.enable()
-combo.increment()
-fire_wall.spawn(2, 25)
-fire_wall.update(0)
+
+local pool_windows = {}
+for _, win in ipairs(vim.api.nvim_list_wins()) do
+  if win ~= vim.api.nvim_get_current_win() then
+    local cfg = vim.api.nvim_win_get_config(win)
+    if config_coord(cfg.row) == -10 and config_coord(cfg.col) == -10 then
+      pool_windows[#pool_windows + 1] = win
+    end
+  end
+end
+
 renderer.render({ {
   x = 20,
   y = 20,
@@ -46,6 +63,19 @@ renderer.render({ {
   max_lifetime = 200,
   color_idx = 1,
 } })
+
+local visible_particle_windows = {}
+for _, win in ipairs(pool_windows) do
+  local cfg = vim.api.nvim_win_get_config(win)
+  if config_coord(cfg.row) == 20 and config_coord(cfg.col) == 20 then
+    visible_particle_windows[#visible_particle_windows + 1] = win
+  end
+end
+assert_eq(#visible_particle_windows, 1, "captures the visible particle window")
+
+combo.increment()
+fire_wall.spawn(2, 25)
+fire_wall.update(0)
 local original_eventignore = vim.o.eventignore
 local original_lazyredraw = vim.o.lazyredraw
 vim.o.eventignore = "CursorHold"
@@ -53,10 +83,12 @@ vim.o.lazyredraw = false
 power_mode.disable()
 
 local all_particle_windows_parked = true
-for _, win in ipairs(vim.api.nvim_list_wins()) do
-  if win ~= vim.api.nvim_get_current_win() then
+for _, win in ipairs(visible_particle_windows) do
+  if vim.api.nvim_win_is_valid(win) then
     local cfg = vim.api.nvim_win_get_config(win)
-    if cfg.relative == "editor" and cfg.row ~= -10 then
+    local row = config_coord(cfg.row)
+    local col = config_coord(cfg.col)
+    if row ~= -10 and not (row == nil and col == -10) then
       all_particle_windows_parked = false
     end
   end
