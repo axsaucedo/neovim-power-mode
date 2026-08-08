@@ -192,10 +192,19 @@ function M.disable()
   engine.stop()
   particles.clear()
   fire.clear()
+
+  -- F9: suppress redraw and third-party autocmd cascades while deleting the
+  -- floating UI. See the 2026-08-08 disable latency benchmark.
+  local eventignore = vim.o.eventignore
+  local lazyredraw = vim.o.lazyredraw
+  vim.o.eventignore = "all"
+  vim.o.lazyredraw = true
   fire_wall.clear()
-  renderer.cleanup()
+  renderer.cleanup(true)
   combo.cleanup()
   shake.cleanup()
+  vim.o.eventignore = eventignore
+  vim.o.lazyredraw = lazyredraw
 
   vim.notify("Power Mode disabled", vim.log.levels.INFO)
 end

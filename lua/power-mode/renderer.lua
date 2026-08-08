@@ -5,6 +5,7 @@ local config = require("power-mode.config")
 local M = {}
 
 local pool = {}
+local cleanup_batch_size = 20
 
 -- F8: cache strdisplaywidth(char) per unique particle char. The particle
 -- alphabet across all presets is small and bounded (~30 chars), so the
@@ -50,6 +51,35 @@ function M.init()
       -- config writes per frame.
       pool[i] = { buf = buf, win = win, in_use = false, was_in_use = false }
     end
+  end
+end
+
+local function cleanup_entries(entries, first, last)
+  local eventignore = vim.o.eventignore
+  local lazyredraw = vim.o.lazyredraw
+  vim.o.eventignore = "all"
+  vim.o.lazyredraw = true
+
+  for i = first, last do
+    local entry = entries[i]
+    if entry.buf and vim.api.nvim_buf_is_valid(entry.buf) then
+      pcall(vim.api.nvim_buf_delete, entry.buf, { force = true })
+    end
+    if entry.win and vim.api.nvim_win_is_valid(entry.win) then
+      pcall(vim.api.nvim_win_close, entry.win, true)
+    end
+  end
+
+  vim.o.eventignore = eventignore
+  vim.o.lazyredraw = lazyredraw
+end
+
+local function cleanup_deferred(entries, first)
+  if first > #entries then return end
+  cleanup_entries(entries, first, math.min(first + cleanup_batch_size - 1, #entries))
+  local next_entry = first + cleanup_batch_size
+  if next_entry <= #entries then
+    vim.schedule(function() cleanup_deferred(entries, next_entry) end)
   end
 end
 
@@ -146,16 +176,30 @@ function M.render(particles)
   end
 end
 
-function M.cleanup()
-  for _, entry in ipairs(pool) do
-    if entry.win and vim.api.nvim_win_is_valid(entry.win) then
-      pcall(vim.api.nvim_win_close, entry.win, true)
-    end
-    if entry.buf and vim.api.nvim_buf_is_valid(entry.buf) then
-      pcall(vim.api.nvim_buf_delete, entry.buf, { force = true })
-    end
-  end
+--- Reclaim the particle pool, optionally after parking visible slots.
+--- @param defer boolean|nil
+function M.cleanup(defer)
+  local old_pool = pool
   pool = {}
+
+  if defer then
+    -- F9: park the few visible slots before returning, then reclaim the old
+    -- pool in small batches. See the 2026-08-08 disable latency benchmark.
+    for _, entry in ipairs(old_pool) do
+      if entry.in_use and entry.win and vim.api.nvim_win_is_valid(entry.win) then
+        pcall(vim.api.nvim_win_set_config, entry.win, {
+          relative = "editor",
+          row = -10,
+          col = -10,
+          width = 1,
+          height = 1,
+        })
+      end
+    end
+    vim.schedule(function() cleanup_deferred(old_pool, 1) end)
+  else
+    cleanup_entries(old_pool, 1, #old_pool)
+  end
 end
 
 return M

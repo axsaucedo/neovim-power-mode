@@ -41,6 +41,10 @@ jobs:
         run: |
           nvim --headless -u tests/minimal_init.lua -c "luafile tests/test_fire_wall.lua" -c "qall!"
 
+      - name: Run renderer tests
+        run: |
+          nvim --headless -u tests/minimal_init.lua -c "luafile tests/test_renderer.lua" -c "qall!"
+
   perf-smoke:
     # Non-asserting smoke run of the perf evaluation suite. Verifies that
     # every bench under tests/perf/ executes cleanly and produces valid
