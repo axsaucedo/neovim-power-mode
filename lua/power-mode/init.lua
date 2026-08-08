@@ -9,6 +9,7 @@ local engine = require("power-mode.engine")
 local shake = require("power-mode.shake")
 local fire = require("power-mode.presets.fire")
 local fire_wall = require("power-mode.fire_wall")
+local utils = require("power-mode.utils")
 
 local M = {}
 
@@ -192,10 +193,15 @@ function M.disable()
   engine.stop()
   particles.clear()
   fire.clear()
-  fire_wall.clear()
-  renderer.cleanup()
-  combo.cleanup()
-  shake.cleanup()
+
+  -- F9: suppress redraw and third-party autocmd cascades while deleting the
+  -- floating UI. See the 2026-08-08 disable latency benchmark.
+  utils.with_ui_suppressed("disable teardown", function()
+    fire_wall.clear()
+    renderer.cleanup(true)
+    combo.cleanup()
+    shake.cleanup()
+  end)
 
   vim.notify("Power Mode disabled", vim.log.levels.INFO)
 end
