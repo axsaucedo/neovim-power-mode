@@ -28,6 +28,32 @@ local base_col = 0
 local exclamation = ""
 local exclamation_timer = nil
 local hide_timer = nil
+local render_valid = false
+local highlight_valid = false
+local last_streak = nil
+local last_bar_filled = nil
+local last_max_streak = nil
+local last_exclamation = nil
+local last_width = nil
+local last_height = nil
+local last_level = nil
+
+local function invalidate_render()
+  render_valid = false
+  highlight_valid = false
+end
+
+local function apply_highlight()
+  if not win or not vim.api.nvim_win_is_valid(win) then return end
+  if highlight_valid and last_level == state.level then return end
+  local hl = "PowerModeCombo" .. state.level
+  local ok = pcall(vim.api.nvim_win_set_option, win, "winhighlight",
+    "Normal:" .. hl .. ",NormalFloat:" .. hl .. ",FloatBorder:" .. hl)
+  if ok then
+    last_level = state.level
+    highlight_valid = true
+  end
+end
 
 local function cancel_hide_timer()
   if hide_timer then
@@ -58,11 +84,6 @@ end
 local function center_text(text, width)
   local pad = math.max(0, math.floor((width - #text) / 2))
   return string.rep(" ", pad) .. text .. string.rep(" ", math.max(0, width - pad - #text))
-end
-
-local function render_bar(ratio, width)
-  local filled = math.floor(ratio * width)
-  return string.rep("█", filled) .. string.rep("░", width - filled)
 end
 
 local function compute_position(cfg)
@@ -109,6 +130,7 @@ function M.ensure_window()
     local empty_lines = {}
     for _ = 1, h do empty_lines[#empty_lines + 1] = "" end
     pcall(vim.api.nvim_buf_set_lines, buf, 0, -1, false, empty_lines)
+    invalidate_render()
   end
 
   -- Re-create window if needed
@@ -128,9 +150,8 @@ function M.ensure_window()
     })
     if ok then
       win = w_handle
-      local hl = "PowerModeCombo" .. state.level
-      pcall(vim.api.nvim_win_set_option, win, "winhighlight",
-        "Normal:" .. hl .. ",NormalFloat:" .. hl .. ",FloatBorder:" .. hl)
+      invalidate_render()
+      apply_highlight()
     end
   end
 end
@@ -214,13 +235,6 @@ function M.increment()
     end, 60)
   end
 
-  -- Update highlight color for level
-  if win and vim.api.nvim_win_is_valid(win) then
-    local hl = "PowerModeCombo" .. state.level
-    pcall(vim.api.nvim_win_set_option, win, "winhighlight",
-      "Normal:" .. hl .. ",NormalFloat:" .. hl .. ",FloatBorder:" .. hl)
-  end
-
   M.render()
 end
 
@@ -229,12 +243,6 @@ function M.reset()
   state.level = 0
   state.timeout_remaining = 0
   exclamation = ""
-
-  -- Reset combo window highlight back to default level 0
-  if win and vim.api.nvim_win_is_valid(win) then
-    pcall(vim.api.nvim_win_set_option, win, "winhighlight",
-      "Normal:PowerModeCombo0,NormalFloat:PowerModeCombo0,FloatBorder:PowerModeCombo0")
-  end
 
   -- Schedule auto-hide: after combo_box_disappear_seconds of no activity,
   -- close the floating window entirely. A new keystroke cancels this timer
@@ -266,7 +274,7 @@ end
 
 function M.update(dt)
   local cfg = config.get()
-  if not cfg.combo.enabled then return end
+  if not cfg.combo.enabled then return true end
 
   if state.timeout_remaining > 0 then
     state.timeout_remaining = state.timeout_remaining - dt * 1000
@@ -276,6 +284,7 @@ function M.update(dt)
     end
   end
   M.render()
+  return state.timeout_remaining <= 0
 end
 
 function M.render()
@@ -284,11 +293,30 @@ function M.render()
   if not buf or not vim.api.nvim_buf_is_valid(buf) then return end
   local cfg = config.get()
   local w = cfg.combo.width
+  local h = cfg.combo.height
 
   local num_str = tostring(state.current_streak)
   local bar_ratio = state.timeout_remaining / cfg.combo.timeout
   bar_ratio = utils.clamp(bar_ratio, 0, 1)
-  local bar = render_bar(bar_ratio, w - 4)
+  local bar_width = w - 4
+  local bar_filled = math.floor(bar_ratio * bar_width)
+
+  apply_highlight()
+
+  -- E1: skip the buffer write when every visible combo key is unchanged.
+  -- Phase 1 found 47.4% duplicate combo frames at 25 fps and 74.6% at
+  -- 60 fps in the particles + combo workload (report-energy-phase1.md).
+  if render_valid
+    and last_streak == state.current_streak
+    and last_bar_filled == bar_filled
+    and last_max_streak == state.max_streak
+    and last_exclamation == exclamation
+    and last_width == w
+    and last_height == h then
+    return
+  end
+
+  local bar = string.rep("█", bar_filled) .. string.rep("░", bar_width - bar_filled)
 
   local lines = {
     center_text("╔═ COMBO ═╗", w),
@@ -305,11 +333,20 @@ function M.render()
   end
 
   -- Trim to height
-  while #lines > cfg.combo.height do
+  while #lines > h do
     table.remove(lines)
   end
 
-  pcall(vim.api.nvim_buf_set_lines, buf, 0, -1, false, lines)
+  local ok = pcall(vim.api.nvim_buf_set_lines, buf, 0, -1, false, lines)
+  if ok then
+    last_streak = state.current_streak
+    last_bar_filled = bar_filled
+    last_max_streak = state.max_streak
+    last_exclamation = exclamation
+    last_width = w
+    last_height = h
+    render_valid = true
+  end
 end
 
 function M.get_level()
@@ -317,10 +354,29 @@ function M.get_level()
 end
 
 --- Cheap idle predicate used by the engine fast-path.
---- Combo has no work to do this tick iff the window is hidden AND
---- there is no timeout remaining to count down.
+--- The linger window is closed by its own timer, so only the timeout bar
+--- needs engine updates.
 function M.is_idle()
-  return state.hidden and state.timeout_remaining <= 0
+  return state.timeout_remaining <= 0
+end
+
+--- Milliseconds until the timeout bar can visibly change again.
+--- @param min_delay number Configured engine frame interval
+function M.next_update_delay(min_delay)
+  if state.timeout_remaining <= 0 then return nil end
+  local cfg = config.get()
+  local bar_width = cfg.combo.width - 4
+  if cfg.combo.timeout <= 0 or bar_width <= 0 then return min_delay end
+
+  local ratio = utils.clamp(state.timeout_remaining / cfg.combo.timeout, 0, 1)
+  local filled = math.floor(ratio * bar_width)
+  if filled <= 0 then
+    return math.max(min_delay, math.ceil(state.timeout_remaining))
+  end
+
+  local boundary = filled * cfg.combo.timeout / bar_width
+  local delay = math.ceil(state.timeout_remaining - boundary + 1)
+  return math.max(min_delay, delay)
 end
 
 function M.get_streak()
@@ -332,6 +388,7 @@ function M.reposition()
   if not cfg.combo.enabled then return end
 
   base_row, base_col = compute_position(cfg)
+  invalidate_render()
   if win and vim.api.nvim_win_is_valid(win) then
     pcall(vim.api.nvim_win_set_config, win, {
       relative = "editor",
@@ -363,6 +420,12 @@ function M.cleanup()
   state.timeout_remaining = 0
   state.hidden = true
   exclamation = ""
+  invalidate_render()
+end
+
+--- Invalidate cached UI state after an external redraw boundary.
+function M.invalidate()
+  invalidate_render()
 end
 
 -- Internal accessor for tests: returns visibility state.
@@ -372,6 +435,10 @@ end
 
 function M._has_pending_hide()
   return hide_timer ~= nil
+end
+
+function M._get_window()
+  return win
 end
 
 return M

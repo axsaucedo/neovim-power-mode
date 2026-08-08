@@ -112,6 +112,45 @@ combo.cleanup()
 -- Reset
 config.resolve({})
 
+-- Test 12: identical visible state skips the buffer write, while invalidation
+-- forces the current payload to be restored.
+config.resolve({ combo = { shake = false, combo_box_disappear_seconds = 60 } })
+combo.init()
+local original_set_lines = vim.api.nvim_buf_set_lines
+local set_lines_calls = 0
+vim.api.nvim_buf_set_lines = function(...)
+  set_lines_calls = set_lines_calls + 1
+  return original_set_lines(...)
+end
+
+combo.increment()
+local after_increment = set_lines_calls
+combo.update(0)
+assert_eq(set_lines_calls, after_increment, "identical combo frame skips buffer write")
+
+combo.reset()
+assert_eq(set_lines_calls, after_increment + 1, "changed combo state renders new payload")
+
+combo.invalidate()
+combo.update(0)
+assert_eq(set_lines_calls, after_increment + 2, "invalidated combo state restores current payload")
+
+local window_before_close = combo._get_window()
+vim.api.nvim_win_close(window_before_close, true)
+combo.ensure_window()
+local before_recovery_render = set_lines_calls
+combo.update(0)
+assert_eq(set_lines_calls, before_recovery_render + 1, "re-created combo window forces payload render")
+assert_eq(vim.api.nvim_win_is_valid(combo._get_window()), true, "combo window recovers after external close")
+
+combo.increment()
+combo.update(0.04)
+assert_eq(combo.next_update_delay(40) > 40, true, "combo-only cadence waits for next visible bar step")
+
+vim.api.nvim_buf_set_lines = original_set_lines
+combo.cleanup()
+config.resolve({})
+
 print(string.format("\n=== Combo Tests: %d passed, %d failed ===", pass, fail))
 if fail > 0 then
   vim.cmd("cquit! 1")

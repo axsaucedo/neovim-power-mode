@@ -42,6 +42,7 @@ function M.setup(opts)
     group = hl_augroup,
     callback = function()
       highlights.setup()
+      combo.invalidate()
       fire_wall.init()  -- re-create fire highlight groups
     end,
   })
@@ -83,6 +84,7 @@ function M.enable()
         combo.increment()
         shake.trigger(combo.get_level())
         fire_wall.spawn(combo.get_level(), combo.get_streak())
+        engine.wake()
 
         if stop_timer then
           pcall(function() stop_timer:stop() stop_timer:close() end)
@@ -106,6 +108,7 @@ function M.enable()
         if m ~= "i" and m ~= "ic" and m ~= "ix" then return end
         local row, col = get_cursor_pos()
         fire.spawn(row, col)
+        engine.wake()
       end)
     end)
   end
