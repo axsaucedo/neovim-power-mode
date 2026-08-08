@@ -42,6 +42,7 @@ function M.setup(opts)
     group = hl_augroup,
     callback = function()
       highlights.setup()
+      combo.invalidate()
       fire_wall.init()  -- re-create fire highlight groups
     end,
   })
