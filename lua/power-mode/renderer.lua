@@ -1,29 +1,15 @@
 --- Floating window pool renderer for neovim-power-mode
 --- Manages a pool of 1×1 floating windows for particle rendering
 local config = require("power-mode.config")
+local utils = require("power-mode.utils")
 
 local M = {}
 
 local pool = {}
 local cleanup_batch_size = 20
 
-local function with_ui_suppressed(fn)
-  local eventignore = vim.o.eventignore
-  local lazyredraw = vim.o.lazyredraw
-  vim.o.eventignore = "all"
-  vim.o.lazyredraw = true
-
-  local ok, err = pcall(fn)
-
-  vim.o.eventignore = eventignore
-  vim.o.lazyredraw = lazyredraw
-  if not ok then
-    vim.notify("[power-mode] renderer cleanup failed: " .. tostring(err), vim.log.levels.WARN)
-  end
-  return ok
-end
-
-M._with_ui_suppressed = with_ui_suppressed
+-- Test-only accessor for the shared UI-suppression helper.
+M._with_ui_suppressed = function(fn) return utils.with_ui_suppressed("renderer cleanup", fn) end
 
 -- F8: cache strdisplaywidth(char) per unique particle char. The particle
 -- alphabet across all presets is small and bounded (~30 chars), so the
@@ -73,7 +59,7 @@ function M.init()
 end
 
 local function cleanup_entries(entries, first, last)
-  with_ui_suppressed(function()
+  utils.with_ui_suppressed("renderer cleanup", function()
     for i = first, last do
       local entry = entries[i]
       if entry.buf and vim.api.nvim_buf_is_valid(entry.buf) then
